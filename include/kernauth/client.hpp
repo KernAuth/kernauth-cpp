@@ -47,15 +47,7 @@ struct VersionInfo {
 
 VersionInfo fetch_version(HttpTransport& transport, std::string_view base_url);
 
-ClientResult activate(
-    HttpTransport& transport,
-    const ClientOptions& options,
-    std::string_view license_key);
 ClientResult validate_license(
-    HttpTransport& transport,
-    const ClientOptions& options,
-    std::string_view license_key);
-ClientResult deactivate(
     HttpTransport& transport,
     const ClientOptions& options,
     std::string_view license_key);

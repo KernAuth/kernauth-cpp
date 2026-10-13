@@ -36,8 +36,7 @@ ClientResult post_entitlement(
     HttpTransport& transport,
     const ClientOptions& options,
     std::string_view license_key,
-    std::string_view path,
-    bool expect_entitlement) {
+    std::string_view path) {
   if (options.base_url.empty() || options.public_app_id.empty() || options.device_fingerprint.empty() ||
       options.installation_id.empty()) {
     return failure_result(0, "invalid_request", "Client options are incomplete");
@@ -89,20 +88,6 @@ ClientResult post_entitlement(
     if (parsed.contains("error") && parsed["error"].contains("request_id") &&
         parsed["error"]["request_id"].is_string()) {
       result.request_id = parsed["error"]["request_id"].get<std::string>();
-    }
-    return result;
-  }
-
-  if (!expect_entitlement) {
-    if (!parsed.contains("deactivated") || parsed["deactivated"] != true) {
-      return failure_result(response.status, "malformed_response", "Deactivate response was not accepted");
-    }
-    ClientResult result;
-    result.ok = true;
-    result.http_status = response.status;
-    result.code = "deactivated";
-    if (parsed.contains("request_id") && parsed["request_id"].is_string()) {
-      result.request_id = parsed["request_id"].get<std::string>();
     }
     return result;
   }
@@ -202,25 +187,11 @@ VersionInfo fetch_version(HttpTransport& transport, std::string_view base_url) {
   }
 }
 
-ClientResult activate(
-    HttpTransport& transport,
-    const ClientOptions& options,
-    std::string_view license_key) {
-  return post_entitlement(transport, options, license_key, "/v1/client/activate", true);
-}
-
 ClientResult validate_license(
     HttpTransport& transport,
     const ClientOptions& options,
     std::string_view license_key) {
-  return post_entitlement(transport, options, license_key, "/v1/client/validate", true);
-}
-
-ClientResult deactivate(
-    HttpTransport& transport,
-    const ClientOptions& options,
-    std::string_view license_key) {
-  return post_entitlement(transport, options, license_key, "/v1/client/deactivate", false);
+  return post_entitlement(transport, options, license_key, "/v1/client/validate");
 }
 
 }  // namespace kernauth

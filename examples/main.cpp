@@ -13,15 +13,7 @@ int main() {
 
   std::string license_key;
   std::getline(std::cin, license_key);
-  if (!app.activate(license_key).active) {
-    std::cout << app.response.message << "\n";
-    return 1;
-  }
   if (!app.validate(license_key).active) {
-    std::cout << app.response.message << "\n";
-    return 1;
-  }
-  if (!app.deactivate(license_key).ok) {
     std::cout << app.response.message << "\n";
     return 1;
   }

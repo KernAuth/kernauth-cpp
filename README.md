@@ -1,6 +1,6 @@
 # KernAuth C++ SDK
 
-Include one header. Construct `kernauth::App` with the values from Developers. Call `activate`, `validate`, and `deactivate`. The last result is `response`.
+Include one header. Construct `kernauth::App` with the values from Developers. Call `validate`. The last result is `response`.
 
 The SDK checks the Ed25519 signature with libsodium. A patched binary can still skip that check. Revocation, device limits, and the audit log are enforced by the server. The SDK embeds no private signing key and no long-lived secret API key.
 
@@ -39,17 +39,6 @@ app.set_installation(hide("install_your_device"), "desktop");
 
 Paste the public app ID, key ID, and public key from Developers. Pin those values in the client you ship. Do not download a different key at runtime. Persist one installation ID per device and reuse it. The Free plan allows one device. Pass the license key from your own prompt or a file. Do not commit a customer key.
 
-## Activate
-
-```cpp
-if (!app.activate(license_key).active) {
-  std::cout << app.response.message << "\n";
-  return 1;
-}
-```
-
-`response.message` is `License is active`. On failure, `response.ok` is false and `response.message` is the server error with the license key redacted.
-
 ## Validate
 
 ```cpp
@@ -59,18 +48,9 @@ if (!app.validate(license_key).active) {
 }
 ```
 
-Call this when the program starts again, and before a privileged action. A revoked license is refused on the next validate, or when the signed entitlement expires.
+The first success saves this machine. A later call from the same installation succeeds. A different machine fails when the license has no free device slot. The Free plan has one slot. Reset HWID in the dashboard clears the saved machines. `response.message` is `License is active`. On failure, `response.ok` is false and `response.message` is the server error with the license key redacted.
 
-## Deactivate
-
-```cpp
-if (!app.deactivate(license_key).ok) {
-  std::cout << app.response.message << "\n";
-  return 1;
-}
-```
-
-`response.message` is `Device deactivated`. This frees the device slot.
+Call this when the program starts, and before a privileged action. A revoked license is refused on the next validate, or when the signed entitlement expires.
 
 ## Example
 

@@ -271,35 +271,20 @@ void check_http(const nlohmann::json& active) {
   transport.handler = [&](const kernauth::HttpRequest& request) {
     kernauth::HttpResponse response;
     response.status = 200;
-    if (request.url.find("/v1/client/deactivate") != std::string::npos) {
-      response.body = R"({"deactivated":true,"request_id":"req_off"})";
-      return response;
-    }
     response.body = worker_success(active).dump();
     return response;
   };
 
   const auto options = options_for(active, fingerprint);
-  const auto activated = kernauth::activate(transport, options, license_key);
-  expect(activated.ok && activated.active && activated.code == "active", "activate accepts the committed active vector");
-  expect(!transport.requests.empty() && transport.requests.back().url.find("/v1/client/activate") != std::string::npos,
-         "activate posts to the client activate route");
-
   const auto validated = kernauth::validate_license(transport, options, license_key);
   expect(validated.ok && validated.active && validated.code == "active", "validate accepts the committed active vector");
-  expect(transport.requests.back().url.find("/v1/client/validate") != std::string::npos,
+  expect(!transport.requests.empty() && transport.requests.back().url.find("/v1/client/validate") != std::string::npos,
          "validate posts to the client validate route");
 
-  const auto deactivated = kernauth::deactivate(transport, options, license_key);
-  expect(deactivated.ok && !deactivated.active && deactivated.code == "deactivated", "deactivate returns an explicit success");
-
   kernauth::App app(transport, options);
-  app.activate(license_key);
+  app.validate(license_key);
   expect(app.response.ok && app.response.active && app.response.message == "License is active",
-         "app facade stores a successful activate");
-  app.deactivate(license_key);
-  expect(app.response.ok && app.response.code == "deactivated" && app.response.message == "Device deactivated",
-         "app facade stores a successful deactivate");
+         "app facade stores a successful validate");
 
   transport.handler = [&](const kernauth::HttpRequest&) {
     kernauth::HttpResponse response;
@@ -315,13 +300,10 @@ void check_http(const nlohmann::json& active) {
   };
   const char* failure_labels[] = {"unknown key", "revoked key", "expired key"};
   for (const char* label : failure_labels) {
-    const auto rejected = kernauth::activate(transport, options, license_key);
+    const auto rejected = kernauth::validate_license(transport, options, license_key);
     expect(!rejected.ok && !rejected.active && rejected.code == "license_invalid", std::string(label) + " is not an active grant");
     expect(rejected.message.find(license_key) == std::string::npos, std::string(label) + " result does not contain the raw license key");
   }
-
-  const auto rejected_deactivate = kernauth::deactivate(transport, options, license_key);
-  expect(!rejected_deactivate.ok && !rejected_deactivate.active, "deactivate of an invalid key is a failure");
 
   ScriptedTransport nonce_transport;
   nonce_transport.handler = [](const kernauth::HttpRequest&) {
@@ -332,10 +314,10 @@ void check_http(const nlohmann::json& active) {
   };
   kernauth::ClientOptions fresh = options;
   fresh.nonce_generator = nullptr;
-  const auto first = kernauth::activate(nonce_transport, fresh, license_key);
-  const auto second = kernauth::activate(nonce_transport, fresh, license_key);
+  const auto first = kernauth::validate_license(nonce_transport, fresh, license_key);
+  const auto second = kernauth::validate_license(nonce_transport, fresh, license_key);
   expect(!first.active && !second.active, "unverified responses are not active grants");
-  expect(nonce_transport.requests.size() == 2, "two activate calls recorded two requests");
+  expect(nonce_transport.requests.size() == 2, "two validate calls recorded two requests");
   if (nonce_transport.requests.size() == 2) {
     const auto first_body = nlohmann::json::parse(nonce_transport.requests[0].body);
     const auto second_body = nlohmann::json::parse(nonce_transport.requests[1].body);
@@ -343,10 +325,10 @@ void check_http(const nlohmann::json& active) {
     const std::string second_nonce = second_body.at("nonce").get<std::string>();
     expect(first_nonce != second_nonce, "request nonces differ");
     expect(nonce_charset_ok(first_nonce) && nonce_charset_ok(second_nonce), "request nonces match the client nonce charset");
-    expect(first_body.at("protocol_version").get<int>() == 1, "activate sends protocol version 1");
-    expect(first_body.at("public_app_id").get<std::string>() == options.public_app_id, "activate sends the public application id");
-    expect(first_body.at("device_fingerprint").get<std::string>() == fingerprint, "activate sends the derived fingerprint");
-    expect(first_body.at("installation_id").get<std::string>() == "install_sdk_test", "activate sends the installation id");
+    expect(first_body.at("protocol_version").get<int>() == 1, "validate sends protocol version 1");
+    expect(first_body.at("public_app_id").get<std::string>() == options.public_app_id, "validate sends the public application id");
+    expect(first_body.at("device_fingerprint").get<std::string>() == fingerprint, "validate sends the derived fingerprint");
+    expect(first_body.at("installation_id").get<std::string>() == "install_sdk_test", "validate sends the installation id");
   }
 }
 

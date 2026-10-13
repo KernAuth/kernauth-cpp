@@ -91,16 +91,8 @@ class App {
     options_.device_fingerprint = std::move(fingerprint);
   }
 
-  ClientResult activate(std::string_view license_key) {
-    return finish(kernauth::activate(*transport_, options_, license_key));
-  }
-
   ClientResult validate(std::string_view license_key) {
     return finish(validate_license(*transport_, options_, license_key));
-  }
-
-  ClientResult deactivate(std::string_view license_key) {
-    return finish(kernauth::deactivate(*transport_, options_, license_key));
   }
 
   ClientResult response;
@@ -108,7 +100,7 @@ class App {
  private:
   ClientResult finish(ClientResult result) {
     if (result.ok && result.message.empty()) {
-      result.message = result.code == "deactivated" ? "Device deactivated" : "License is active";
+      result.message = "License is active";
     }
     response = std::move(result);
     return response;
