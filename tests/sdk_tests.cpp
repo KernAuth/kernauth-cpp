@@ -1,6 +1,8 @@
+#include "kernauth/app.hpp"
 #include "kernauth/cache.hpp"
 #include "kernauth/canonical.hpp"
 #include "kernauth/client.hpp"
+#include "kernauth/conceal.hpp"
 #include "kernauth/nonce.hpp"
 #include "kernauth/verify.hpp"
 
@@ -171,6 +173,24 @@ bool nonce_charset_ok(std::string_view nonce) {
   return true;
 }
 
+void check_conceal() {
+  constexpr char plain[] = "api.kernauth.com";
+  constexpr kernauth::ConcealedString<sizeof(plain), 0xC0FFEE1234ull> hidden(plain);
+  const std::string revealed = hidden.reveal();
+  expect(revealed == plain, "concealed string reveals the original");
+  bool differs = false;
+  for (std::size_t index = 0; index < sizeof(plain); ++index) {
+    if (hidden.stored(index) != static_cast<unsigned char>(plain[index])) {
+      differs = true;
+    }
+  }
+  expect(differs, "concealed bytes differ from the plaintext");
+  constexpr kernauth::ConcealedString<sizeof(plain), 0x123456789ull> other(plain);
+  expect(hidden.stored(0) != other.stored(0), "a different seed stores different ciphertext");
+  const std::string via_macro = KERNAUTH_CONCEAL("license-check").reveal();
+  expect(via_macro == "license-check", "KERNAUTH_CONCEAL reveals the literal");
+}
+
 void check_vectors(const nlohmann::json& document) {
   const auto& vectors = document.at("vectors");
   expect(vectors.is_array() && vectors.size() >= 2, "committed vectors are present");
@@ -273,6 +293,14 @@ void check_http(const nlohmann::json& active) {
 
   const auto deactivated = kernauth::deactivate(transport, options, license_key);
   expect(deactivated.ok && !deactivated.active && deactivated.code == "deactivated", "deactivate returns an explicit success");
+
+  kernauth::App app(transport, options);
+  app.activate(license_key);
+  expect(app.response.ok && app.response.active && app.response.message == "License is active",
+         "app facade stores a successful activate");
+  app.deactivate(license_key);
+  expect(app.response.ok && app.response.code == "deactivated" && app.response.message == "Device deactivated",
+         "app facade stores a successful deactivate");
 
   transport.handler = [&](const kernauth::HttpRequest&) {
     kernauth::HttpResponse response;
@@ -424,6 +452,7 @@ int main() {
       return 1;
     }
     const auto document = nlohmann::json::parse(input);
+    check_conceal();
     check_vectors(document);
     check_http(document.at("vectors").at(0));
     check_cache();

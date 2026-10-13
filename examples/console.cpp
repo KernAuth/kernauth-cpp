@@ -1,5 +1,6 @@
 #include "kernauth/cache.hpp"
 #include "kernauth/client.hpp"
+#include "kernauth/conceal.hpp"
 #include "kernauth/nonce.hpp"
 
 #include <chrono>
@@ -43,7 +44,7 @@ void print_failure(std::string_view code) {
 }  // namespace
 
 int main(int argc, char** argv) {
-  std::string base_url = "https://api.kernauth.com";
+  std::string base_url = KERNAUTH_CONCEAL("https://api.kernauth.com").reveal();
   std::string public_app_id;
   std::string public_key;
   std::string key_id;
