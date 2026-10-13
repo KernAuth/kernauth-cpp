@@ -1,8 +1,7 @@
-#include "kernauth/app.hpp"
+#include "kernauth.hpp"
 #include "kernauth/cache.hpp"
 #include "kernauth/canonical.hpp"
 #include "kernauth/client.hpp"
-#include "kernauth/conceal.hpp"
 #include "kernauth/nonce.hpp"
 #include "kernauth/verify.hpp"
 
@@ -187,8 +186,8 @@ void check_conceal() {
   expect(differs, "concealed bytes differ from the plaintext");
   constexpr kernauth::ConcealedString<sizeof(plain), 0x123456789ull> other(plain);
   expect(hidden.stored(0) != other.stored(0), "a different seed stores different ciphertext");
-  const std::string via_macro = KERNAUTH_CONCEAL("license-check").reveal();
-  expect(via_macro == "license-check", "KERNAUTH_CONCEAL reveals the literal");
+  const std::string via_macro = hide("license-check");
+  expect(via_macro == "license-check", "hide returns the literal");
 }
 
 void check_vectors(const nlohmann::json& document) {

@@ -83,11 +83,8 @@ target_include_directories(kernauth_sdk PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/inclu
 target_link_libraries(kernauth_sdk PUBLIC sodium nlohmann_json::nlohmann_json CURL::libcurl)
 target_compile_features(kernauth_sdk PUBLIC cxx_std_20)
 
-add_executable(kernauth_example examples/console.cpp)
-target_link_libraries(kernauth_example PRIVATE kernauth_sdk)
-
-add_executable(kernauth_integrate examples/integrate.cpp)
-target_link_libraries(kernauth_integrate PRIVATE kernauth_sdk)
+add_executable(kernauth examples/main.cpp)
+target_link_libraries(kernauth PRIVATE kernauth_sdk)
 
 add_executable(kernauth_sdk_version_check tests/version_check.cpp)
 target_link_libraries(kernauth_sdk_version_check PRIVATE kernauth_sdk)
