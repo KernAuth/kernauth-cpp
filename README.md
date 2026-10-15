@@ -2,6 +2,8 @@
 
 Open the example, paste the public app ID and public key from Developers, and run it. The program asks for a license key, then prints the status, feature flags, license id, and when this check expires.
 
+The library is the headers in `include/`. Include `kernauth.hpp`. There are no library source files to add. The project still links libsodium and libcurl.
+
 ## Visual Studio
 
 Use Visual Studio 2022 with the Desktop development with C++ workload. That workload includes vcpkg.

@@ -75,14 +75,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\main.cpp" />
-    <ClCompile Include="..\..\src\version.cpp" />
-    <ClCompile Include="..\..\src\canonical.cpp" />
-    <ClCompile Include="..\..\src\verify.cpp" />
-    <ClCompile Include="..\..\src\nonce.cpp" />
-    <ClCompile Include="..\..\src\installation.cpp" />
-    <ClCompile Include="..\..\src\client.cpp" />
-    <ClCompile Include="..\..\src\cache.cpp" />
-    <ClCompile Include="..\..\src\curl_transport.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\kernauth.hpp" />

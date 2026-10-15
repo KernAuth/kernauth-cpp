@@ -71,21 +71,13 @@ endif()
 get_target_property(KERNAUTH_SODIUM_INCLUDES sodium INTERFACE_INCLUDE_DIRECTORIES)
 message(STATUS "kernauth_sdk links libsodium target sodium (${KERNAUTH_SODIUM_INCLUDES}) and libcurl target CURL::libcurl")
 
-add_library(kernauth_sdk STATIC
-  src/version.cpp
-  src/canonical.cpp
-  src/verify.cpp
-  src/nonce.cpp
-  src/installation.cpp
-  src/client.cpp
-  src/cache.cpp
-  src/curl_transport.cpp)
-target_include_directories(kernauth_sdk PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(kernauth_sdk PUBLIC sodium nlohmann_json::nlohmann_json CURL::libcurl)
+add_library(kernauth_sdk INTERFACE)
+target_include_directories(kernauth_sdk INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(kernauth_sdk INTERFACE sodium nlohmann_json::nlohmann_json CURL::libcurl)
 if(WIN32)
-  target_link_libraries(kernauth_sdk PUBLIC advapi32)
+  target_link_libraries(kernauth_sdk INTERFACE advapi32)
 endif()
-target_compile_features(kernauth_sdk PUBLIC cxx_std_20)
+target_compile_features(kernauth_sdk INTERFACE cxx_std_20)
 
 add_executable(kernauth examples/main.cpp)
 target_link_libraries(kernauth PRIVATE kernauth_sdk)
