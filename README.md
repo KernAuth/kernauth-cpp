@@ -7,7 +7,7 @@ Open the example, paste three values from Developers, and run it. The program as
 Use Visual Studio 2022 with the Desktop development with C++ workload. That workload includes vcpkg.
 
 1. Open `examples/vs/example.sln`.
-2. In `examples/main.cpp`, replace the public app ID, key ID, and public key with the values from Developers.
+2. In `examples/main.cpp`, replace the public app ID and public key with the values from Developers.
 3. Press F5. The first build installs libsodium, libcurl, and nlohmann/json through vcpkg.
 4. Type the license key at the prompt.
 
@@ -21,12 +21,11 @@ The program reads the HWID from the computer. On Windows that is the signed-in u
 kernauth::App app(
     "https://api.kernauth.com",
     "pub_your_app",
-    "your_key_id",
     "your_public_key");
 app.set_installation(installation_id, "desktop");
 ```
 
-Paste the public app ID, key ID, and public key from Developers into the program you ship. The customer types the license key when the program runs.
+Paste the public app ID and public key from Developers into the program you ship. The customer types the license key when the program runs.
 
 ## Validate
 

@@ -90,7 +90,7 @@ GrantDecision decide_grant(
     decision.failure = GrantFailure::ApplicationMismatch;
     return decision;
   }
-  if (fields.key_id != expected.key_id) {
+  if (!expected.key_id.empty() && fields.key_id != expected.key_id) {
     decision.failure = GrantFailure::KeyMismatch;
     return decision;
   }

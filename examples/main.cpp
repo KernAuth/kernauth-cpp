@@ -145,7 +145,6 @@ int main() {
   kernauth::App app(
       "https://api.kernauth.com",
       "__PUBLIC_APP_ID__",
-      "__KEY_ID__",
       "__PUBLIC_KEY__");
   app.set_installation(installation_id(), "desktop");
 
