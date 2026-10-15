@@ -1,0 +1,9 @@
+{
+  "name": "kernauth-example",
+  "version-string": "0.4.0",
+  "dependencies": [
+    "curl",
+    "libsodium",
+    "nlohmann-json"
+  ]
+}
