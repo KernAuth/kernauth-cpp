@@ -1,6 +1,7 @@
 #pragma once
 
 #include "kernauth/client.hpp"
+#include "kernauth/installation.hpp"
 #include "kernauth/nonce.hpp"
 
 #include <cstddef>
@@ -91,16 +92,37 @@ class App {
   }
 
   ClientResult validate(std::string_view license_key) {
+    if (const ClientResult* missing = ensure_installation()) {
+      return *missing;
+    }
     return finish(validate_license(*transport_, options_, license_key));
   }
 
   ClientResult heartbeat(std::string_view license_key) {
+    if (const ClientResult* missing = ensure_installation()) {
+      return *missing;
+    }
     return finish(heartbeat_license(*transport_, options_, license_key));
   }
 
   ClientResult response;
 
  private:
+  const ClientResult* ensure_installation() {
+    if (!options_.installation_id.empty()) {
+      return nullptr;
+    }
+    const std::string installation = default_installation_id();
+    if (installation.empty()) {
+      ClientResult missing;
+      missing.message = "Could not read the HWID";
+      response = std::move(missing);
+      return &response;
+    }
+    set_installation(installation, "desktop");
+    return nullptr;
+  }
+
   ClientResult finish(ClientResult result) {
     if (result.ok && result.message.empty()) {
       result.message = "License is active";

@@ -1,6 +1,6 @@
 # KernAuth C++ SDK
 
-Open the example, paste three values from Developers, and run it. The program asks for a license key, then prints the status, feature flags, license id, and when this check expires.
+Open the example, paste the public app ID and public key from Developers, and run it. The program asks for a license key, then prints the status, feature flags, license id, and when this check expires.
 
 ## Visual Studio
 
@@ -11,7 +11,7 @@ Use Visual Studio 2022 with the Desktop development with C++ workload. That work
 3. Press F5. The first build installs libsodium, libcurl, and nlohmann/json through vcpkg.
 4. Type the license key at the prompt.
 
-The program reads the HWID from the computer. On Windows that is the signed-in user's SID. `KERN_LICENSE_KEY` skips the prompt. `KERN_INSTALLATION_ID` overrides the HWID.
+The program reads the HWID from the computer. On Windows that is the signed-in user's SID. `KERN_LICENSE_KEY` skips the prompt.
 
 ## Instance
 
@@ -22,10 +22,9 @@ kernauth::App app(
     "https://api.kernauth.com",
     "pub_your_app",
     "your_public_key");
-app.set_installation(installation_id, "desktop");
 ```
 
-Paste the public app ID and public key from Developers into the program you ship. The customer types the license key when the program runs.
+Paste the public app ID and public key from Developers into `examples/main.cpp`. The customer types the license key when the program runs. The library reads the Windows user SID.
 
 ## Validate
 
@@ -41,7 +40,7 @@ std::cout << "License: " << result.entitlement.license_id << "\n";
 std::cout << "Check expires: " << result.entitlement.expires_at << "\n";
 ```
 
-The first success saves this computer's HWID. A later run with the same HWID succeeds. Reset HWID in the dashboard clears it.
+The first success saves this computer. A later run on the same Windows user succeeds. Reset HWID in the dashboard clears it.
 
 `Status` is the license state. `Features` is the flags stored on that license. `License` is the license id. `Check expires` is when this check stops being trusted. That is at most 15 minutes, or sooner when the license itself ends first. The example then asks the server again every minute. If the session was ended, the key was paused, or this computer is blocked, it prints that message and exits.
 

@@ -79,6 +79,7 @@
     <ClCompile Include="..\..\src\canonical.cpp" />
     <ClCompile Include="..\..\src\verify.cpp" />
     <ClCompile Include="..\..\src\nonce.cpp" />
+    <ClCompile Include="..\..\src\installation.cpp" />
     <ClCompile Include="..\..\src\client.cpp" />
     <ClCompile Include="..\..\src\cache.cpp" />
     <ClCompile Include="..\..\src\curl_transport.cpp" />
