@@ -1,10 +1,8 @@
 #include "kernauth.hpp"
 
 #include <cstdlib>
-#include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <random>
 #include <string>
 
 #if defined(_WIN32)
@@ -12,10 +10,17 @@
 #define NOMINMAX
 #endif
 #include <io.h>
+#include <sddl.h>
 #include <stdio.h>
 #include <windows.h>
+#if defined(_MSC_VER)
+#pragma comment(lib, "advapi32.lib")
+#endif
 #else
 #include <unistd.h>
+#if defined(__APPLE__)
+#include <stdio.h>
+#endif
 #endif
 
 namespace {
@@ -42,34 +47,70 @@ bool stdin_is_terminal() {
 #endif
 }
 
-std::filesystem::path executable_directory() {
-#if defined(_WIN32)
-  wchar_t buffer[32768];
-  const DWORD length = GetModuleFileNameW(nullptr, buffer, 32768);
-  if (length == 0 || length >= 32768) {
-    return std::filesystem::current_path();
+bool acceptable_hwid(const std::string& value) {
+  if (value.size() < 8 || value.size() > 64) {
+    return false;
   }
-  return std::filesystem::path(buffer, buffer + length).parent_path();
-#else
-  char buffer[4096];
-  const ssize_t length = ::readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
-  if (length <= 0) {
-    return std::filesystem::current_path();
+  for (const unsigned char cell : value) {
+    const bool ok = (cell >= 'A' && cell <= 'Z') || (cell >= 'a' && cell <= 'z') ||
+                    (cell >= '0' && cell <= '9') || cell == '_' || cell == '-';
+    if (!ok) {
+      return false;
+    }
   }
-  buffer[length] = '\0';
-  return std::filesystem::path(buffer).parent_path();
-#endif
+  return true;
 }
 
-std::string random_hex() {
-  std::random_device device;
-  std::uniform_int_distribution<int> digits(0, 15);
-  static constexpr char alphabet[] = "0123456789abcdef";
-  std::string value(32, '0');
-  for (char& cell : value) {
-    cell = alphabet[static_cast<std::size_t>(digits(device))];
+std::string machine_hwid() {
+#if defined(_WIN32)
+  HANDLE token = nullptr;
+  if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token) == 0) {
+    return "";
   }
+  DWORD length = 0;
+  GetTokenInformation(token, TokenUser, nullptr, 0, &length);
+  std::string buffer(length, '\0');
+  if (GetTokenInformation(token, TokenUser, buffer.data(), length, &length) == 0) {
+    CloseHandle(token);
+    return "";
+  }
+  CloseHandle(token);
+  const auto* user = reinterpret_cast<const TOKEN_USER*>(buffer.data());
+  char* sid = nullptr;
+  if (ConvertSidToStringSidA(user->User.Sid, &sid) == 0 || sid == nullptr) {
+    return "";
+  }
+  const std::string value(sid);
+  LocalFree(sid);
   return value;
+#elif defined(__APPLE__)
+  FILE* pipe = popen("ioreg -rd1 -c IOPlatformExpertDevice", "r");
+  if (pipe == nullptr) {
+    return "";
+  }
+  std::string output;
+  char chunk[512];
+  while (fgets(chunk, sizeof(chunk), pipe) != nullptr) {
+    output += chunk;
+  }
+  pclose(pipe);
+  const std::string marker = "\"IOPlatformUUID\" = \"";
+  const auto start = output.find(marker);
+  if (start == std::string::npos) {
+    return "";
+  }
+  const auto value_start = start + marker.size();
+  const auto end = output.find('"', value_start);
+  if (end == std::string::npos) {
+    return "";
+  }
+  return output.substr(value_start, end - value_start);
+#else
+  std::ifstream input("/etc/machine-id");
+  std::string value;
+  std::getline(input, value);
+  return value;
+#endif
 }
 
 std::string license_key() {
@@ -90,25 +131,12 @@ std::string installation_id() {
   if (!from_env.empty()) {
     return from_env;
   }
-  const std::filesystem::path file = executable_directory() / "kernauth-install";
-  {
-    std::ifstream input(file);
-    std::string saved;
-    if (std::getline(input, saved)) {
-      saved = trim(saved);
-      if (!saved.empty()) {
-        return saved;
-      }
-    }
+  const std::string hwid = trim(machine_hwid());
+  if (acceptable_hwid(hwid)) {
+    return hwid;
   }
-  const std::string created = random_hex();
-  std::ofstream output(file);
-  if (!output) {
-    std::cerr << "Could not save the installation id\n";
-    std::exit(1);
-  }
-  output << created << "\n";
-  return created;
+  std::cerr << "Could not read the HWID\n";
+  std::exit(1);
 }
 
 }  // namespace

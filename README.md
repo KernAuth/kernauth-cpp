@@ -11,7 +11,7 @@ Use Visual Studio 2022 with the Desktop development with C++ workload. That work
 3. Press F5. The first build installs libsodium, libcurl, and nlohmann/json through vcpkg.
 4. Type the license key at the prompt.
 
-The program saves an installation id beside the executable, in `kernauth-install`, and reuses it the next time it runs. `KERN_LICENSE_KEY` skips the prompt. `KERN_INSTALLATION_ID` uses that id instead of the file.
+The program reads the HWID from the computer. On Windows that is the signed-in user's SID. `KERN_LICENSE_KEY` skips the prompt. `KERN_INSTALLATION_ID` overrides the HWID.
 
 ## Instance
 
@@ -42,7 +42,7 @@ std::cout << "License: " << result.entitlement.license_id << "\n";
 std::cout << "Check expires: " << result.entitlement.expires_at << "\n";
 ```
 
-The first success saves this machine. A later call from the same installation succeeds. Another machine fails when the license has no free device slot. The Free plan has one slot. Reset HWID in the dashboard clears the saved machines.
+The first success saves this computer's HWID. A later run with the same HWID succeeds. Reset HWID in the dashboard clears it.
 
 `Status` is the license state. `Features` is the flags stored on that license. `License` is the license id. `Check expires` is when this check stops being trusted. That is at most 15 minutes, or sooner when the license itself ends first.
 
