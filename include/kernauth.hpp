@@ -94,6 +94,10 @@ class App {
     return finish(validate_license(*transport_, options_, license_key));
   }
 
+  ClientResult heartbeat(std::string_view license_key) {
+    return finish(heartbeat_license(*transport_, options_, license_key));
+  }
+
   ClientResult response;
 
  private:

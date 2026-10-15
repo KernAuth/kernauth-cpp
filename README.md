@@ -43,7 +43,7 @@ std::cout << "Check expires: " << result.entitlement.expires_at << "\n";
 
 The first success saves this computer's HWID. A later run with the same HWID succeeds. Reset HWID in the dashboard clears it.
 
-`Status` is the license state. `Features` is the flags stored on that license. `License` is the license id. `Check expires` is when this check stops being trusted. That is at most 15 minutes, or sooner when the license itself ends first.
+`Status` is the license state. `Features` is the flags stored on that license. `License` is the license id. `Check expires` is when this check stops being trusted. That is at most 15 minutes, or sooner when the license itself ends first. The example then asks the server again every minute. If the session was ended, the key was paused, or this computer is blocked, it prints that message and exits.
 
 ## Terminal build
 

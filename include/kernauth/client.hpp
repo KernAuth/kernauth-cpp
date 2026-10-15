@@ -52,4 +52,9 @@ ClientResult validate_license(
     const ClientOptions& options,
     std::string_view license_key);
 
+ClientResult heartbeat_license(
+    HttpTransport& transport,
+    const ClientOptions& options,
+    std::string_view license_key);
+
 }  // namespace kernauth

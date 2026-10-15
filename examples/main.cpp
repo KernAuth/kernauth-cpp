@@ -148,7 +148,8 @@ int main() {
       "__PUBLIC_KEY__");
   app.set_installation(installation_id(), "desktop");
 
-  const kernauth::ClientResult result = app.validate(license_key());
+  const std::string key = license_key();
+  const kernauth::ClientResult result = app.validate(key);
   if (!result.active) {
     std::cout << result.message << "\n";
     return 1;
@@ -157,5 +158,16 @@ int main() {
   std::cout << "Features: " << result.entitlement.features << "\n";
   std::cout << "License: " << result.entitlement.license_id << "\n";
   std::cout << "Check expires: " << result.entitlement.expires_at << "\n";
-  return 0;
+  for (;;) {
+#if defined(_WIN32)
+    Sleep(60000);
+#else
+    sleep(60);
+#endif
+    const kernauth::ClientResult beat = app.heartbeat(key);
+    if (!beat.ok) {
+      std::cout << beat.message << "\n";
+      return 1;
+    }
+  }
 }

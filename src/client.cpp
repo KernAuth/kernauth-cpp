@@ -144,6 +144,69 @@ ClientResult post_entitlement(
   return result;
 }
 
+ClientResult post_heartbeat(
+    HttpTransport& transport,
+    const ClientOptions& options,
+    std::string_view license_key) {
+  if (options.base_url.empty() || options.public_app_id.empty() || options.device_fingerprint.empty() ||
+      options.installation_id.empty()) {
+    return failure_result(0, "invalid_request", "Client options are incomplete");
+  }
+  const std::string nonce = options.nonce_generator ? options.nonce_generator() : random_nonce();
+  nlohmann::json body = {
+      {"protocol_version", kProtocolVersion},
+      {"public_app_id", options.public_app_id},
+      {"client_version", options.client_version},
+      {"license_key", license_key},
+      {"fingerprint_version", options.fingerprint_version},
+      {"device_fingerprint", options.device_fingerprint},
+      {"installation_id", options.installation_id},
+      {"nonce", nonce},
+  };
+  if (!options.device_label.empty()) {
+    body["device_label"] = options.device_label;
+  }
+  HttpRequest request;
+  request.method = "POST";
+  request.url = join_url(options.base_url, "/v1/client/heartbeat");
+  request.body = body.dump();
+  const HttpResponse response = transport.exchange(request);
+  if (!response.transport_error.empty()) {
+    return failure_result(0, "transport", "The license service could not be reached");
+  }
+  nlohmann::json parsed;
+  try {
+    parsed = nlohmann::json::parse(response.body);
+  } catch (const nlohmann::json::exception&) {
+    return failure_result(response.status, "malformed_response", "The license service returned invalid JSON");
+  }
+  if (response.status != 200) {
+    std::string code = "session_ended";
+    std::string message = "Session ended";
+    if (parsed.contains("error") && parsed["error"].is_object()) {
+      if (parsed["error"].contains("code") && parsed["error"]["code"].is_string()) {
+        code = parsed["error"]["code"].get<std::string>();
+      }
+      if (parsed["error"].contains("message") && parsed["error"]["message"].is_string()) {
+        message = redact_key(parsed["error"]["message"].get<std::string>(), license_key);
+      }
+    }
+    return failure_result(response.status, code, message);
+  }
+  if (!parsed.contains("ok") || parsed["ok"] != true) {
+    return failure_result(response.status, "malformed_response", "Heartbeat response was incomplete");
+  }
+  ClientResult result;
+  result.ok = true;
+  result.active = true;
+  result.http_status = response.status;
+  result.code = "active";
+  if (parsed.contains("request_id") && parsed["request_id"].is_string()) {
+    result.request_id = parsed["request_id"].get<std::string>();
+  }
+  return result;
+}
+
 }  // namespace
 
 VersionInfo fetch_version(HttpTransport& transport, std::string_view base_url) {
@@ -192,6 +255,13 @@ ClientResult validate_license(
     const ClientOptions& options,
     std::string_view license_key) {
   return post_entitlement(transport, options, license_key, "/v1/client/validate");
+}
+
+ClientResult heartbeat_license(
+    HttpTransport& transport,
+    const ClientOptions& options,
+    std::string_view license_key) {
+  return post_heartbeat(transport, options, license_key);
 }
 
 }  // namespace kernauth
