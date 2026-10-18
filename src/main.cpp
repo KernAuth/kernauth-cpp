@@ -1,6 +1,6 @@
 #include "kernauth.hpp"
-#include "sealed_payload.hpp"
-#include "unlock.hpp"
+
+#include <sodium.h>
 
 #include <chrono>
 #include <cstdlib>
@@ -32,6 +32,13 @@ std::string license_key() {
   return trim(line);
 }
 
+void wipe(std::string& value) {
+  if (!value.empty()) {
+    sodium_memzero(value.data(), value.size());
+  }
+  value.clear();
+}
+
 }  // namespace
 
 int main() {
@@ -47,16 +54,9 @@ int main() {
     return 1;
   }
 
-  std::string payload_key = unlock_payload_key(result.entitlement.features);
-  std::string message;
-  const bool opened = unlock_program(payload_key, kSealedProgram, sizeof kSealedProgram, message);
-  wipe_secret(payload_key);
-  if (!opened) {
-    std::cout << "The payload key could not open this build.\n";
-    return 1;
-  }
+  // The signed ticket can carry a one-time key. This sample does not use it.
+  wipe(result.entitlement.features);
 
-  std::cout << message << "\n";
   std::cout << "Status: " << result.entitlement.status << "\n";
   std::cout << "License: " << result.entitlement.license_id << "\n";
   std::cout << "Check expires: " << result.entitlement.expires_at << "\n";
@@ -64,7 +64,6 @@ int main() {
     std::this_thread::sleep_for(std::chrono::seconds(60));
     const kernauth::ClientResult beat = app.heartbeat(key);
     if (!beat.ok) {
-      wipe_secret(message);
       std::cout << beat.message << "\n";
       return 1;
     }
