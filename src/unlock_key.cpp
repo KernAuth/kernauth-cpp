@@ -69,13 +69,6 @@ bool open_box(std::string_view wrap_key, std::string_view payload_box, std::stri
 
 }  // namespace
 
-void wipe_secret(std::string& value) {
-  if (!value.empty()) {
-    sodium_memzero(value.data(), value.size());
-  }
-  value.clear();
-}
-
 std::string unlock_payload_key(std::string& features_json) {
   const auto features = nlohmann::json::parse(features_json, nullptr, false);
   std::string wrap_key;

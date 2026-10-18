@@ -1,8 +1,8 @@
 # KernAuth C++ SDK
 
-Open `KernAuth.sln`, paste the public app ID and public key from Developers, and run it. The program asks for a license key, then opens the sealed payload with the key from `validate`.
+Open `KernAuth.sln`, paste the public app ID and public key from Developers, and run the KernAuth project. The program asks for a license key, then opens the sealed sample with the key from `validate`.
 
-The library is the headers in `include/`. Include `kernauth.hpp`. There are no library source files to add. The project still links libsodium and libcurl.
+The library is the headers in `include/`. Include `kernauth.hpp`. Add `src/unlock.hpp`, `src/unlock_key.cpp`, and `src/unlock_program.cpp` to your own project. Link libsodium and libcurl. Do not copy `src/main.cpp`.
 
 ## Visual Studio
 
@@ -14,7 +14,7 @@ Use Visual Studio 2022 with the Desktop development with C++ workload. That work
 4. Press F5. The first build installs libsodium, libcurl, and nlohmann/json through vcpkg.
 5. Type the license key at the prompt.
 
-Solution Explorer has Source Files (`src/main.cpp`, `src/unlock_key.cpp`, `src/unlock_program.cpp`) and Header Files (`src/unlock.hpp`, `src/sealed_payload.hpp`, and the `kernauth` headers).
+Solution Explorer for KernAuth has Source Files (`src/main.cpp`, `src/unlock_key.cpp`, `src/unlock_program.cpp`) and Header Files (`src/unlock.hpp`, `src/sealed_payload.hpp`, and the `kernauth` headers). The `seal` project is the tool that seals a loader file. The KernAuth project stays the one that runs when you press F5.
 
 The program reads the HWID from the computer. On Windows that is the signed-in user's SID. `KERN_LICENSE_KEY` skips the prompt.
 
@@ -36,14 +36,24 @@ Paste the public app ID and public key from Developers into `src/main.cpp`. The 
 ```cpp
 kernauth::ClientResult result = app.validate(license_key);
 std::string payload_key = unlock_payload_key(result.entitlement.features);
-std::string message;
-const bool opened = unlock_program(payload_key, message);
+std::string loader;
+const bool opened = unlock_program(payload_key, sealed.data(), sealed.size(), loader);
 wipe_secret(payload_key);
 ```
 
-`unlock_payload_key` opens the one-time lock inside the signed ticket and returns the dashboard payload key. `unlock_program` uses that key to open `src/sealed_payload.hpp`. The program prints `message`. That sentence is not stored in the source. This sample opens only when the saved payload key is `example-payload-key`. For a real program, seal your own bytes with your own key and replace that header. Leave the key out of the repository and out of the binary.
+`sealed` is the bytes of `loader.sealed`. `unlock_payload_key` opens the one-time lock inside the signed ticket and returns the dashboard payload key. `unlock_program` uses that key to open the loader. Use `loader` the way you already load that file, then wipe it. Wipe it again when the heartbeat fails.
 
-The one-time key is different on every validate and is not stored. Heartbeat does not mint another one. The offline cache rejects a ticket that contains it. Changing `validate` so it always returns success does not produce the sentence. A memory dump after a real login can still copy the opened key for that run. The example wipes it after opening the program, and wipes the sentence when the heartbeat fails.
+Seal the loader on your machine. The key is an argument, not a line in the program.
+
+```text
+seal.exe PASTE_KEY loader.dll loader.sealed
+```
+
+`loader.sealed` is a 24-byte nonce followed by the ciphertext. Build `seal` from this solution, or from CMake. The payload key must be 8 to 128 characters from `A-Za-z0-9+/=_-`. The tool refuses an empty file. When a build leaks, save a new payload key, run `seal` again, and ship the new `loader.sealed`. The old dump cannot open the new file. The already-opened loader still runs.
+
+This sample opens `src/sealed_payload.hpp` when the saved payload key is `example-payload-key`. The sentence is not stored in the source. Leave your own key out of the repository and out of the binary.
+
+The one-time key is different on every validate and is not stored. Heartbeat does not mint another one. The offline cache rejects a ticket that contains it. Changing `validate` so it always returns success does not produce the loader. A memory dump after a real login can still copy the opened loader for that run. The example wipes the key after opening, and wipes the sentence when the heartbeat fails.
 
 The first success saves this computer. A later run on the same Windows user succeeds. Reset HWID in the dashboard clears it.
 
@@ -57,6 +67,7 @@ CMake builds the same example. The first configure needs network access. It fetc
 cmake -S . -B build
 cmake --build build
 printf '%s\n' "YOUR-LICENSE-KEY" | ./build/kernauth
+./build/seal PASTE_KEY loader.dll loader.sealed
 ```
 
 From the KernAuth monorepo, configure with `cmake -S packages/sdk-cpp -B build/sdk-cpp`.

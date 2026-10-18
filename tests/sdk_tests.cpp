@@ -1,4 +1,6 @@
 #include "kernauth.hpp"
+#include "sealed_payload.hpp"
+#include "unlock.hpp"
 #include "kernauth/cache.hpp"
 #include "kernauth/canonical.hpp"
 #include "kernauth/client.hpp"
@@ -430,6 +432,36 @@ void check_cache() {
   }
 }
 
+void check_seal() {
+  const std::string_view key = "example-payload-key";
+  std::string sample;
+  expect(unlock_program(key, kSealedProgram, sizeof kSealedProgram, sample), "sample sealed program opens");
+  expect(sample == "KernAuth unlocked this build.", "sample sealed program is the sentence");
+  wipe_secret(sample);
+
+  const std::string loader = "loader-bytes";
+  std::string sealed;
+  const auto* loader_bytes = reinterpret_cast<const unsigned char*>(loader.data());
+  expect(seal_bytes(key, loader_bytes, loader.size(), sealed), "seal writes a loader");
+  std::string again;
+  expect(seal_bytes(key, loader_bytes, loader.size(), again), "seal writes a second loader");
+  expect(sealed != again, "each seal uses a new nonce");
+  std::string opened;
+  expect(
+      unlock_program(key, reinterpret_cast<const unsigned char*>(sealed.data()), sealed.size(), opened) && opened == loader,
+      "sealed loader opens with the same key");
+  wipe_secret(opened);
+  std::string wrong;
+  expect(
+      !unlock_program("other-payload-key", reinterpret_cast<const unsigned char*>(sealed.data()), sealed.size(), wrong),
+      "sealed loader rejects a different key");
+  sealed.back() = static_cast<char>(static_cast<unsigned char>(sealed.back()) ^ 0x01);
+  expect(
+      !unlock_program(key, reinterpret_cast<const unsigned char*>(sealed.data()), sealed.size(), wrong),
+      "sealed loader rejects a flipped byte");
+  expect(!seal_bytes(key, loader_bytes, 0, sealed), "seal rejects an empty loader");
+}
+
 }  // namespace
 
 int main() {
@@ -444,6 +476,7 @@ int main() {
     check_vectors(document);
     check_http(document.at("vectors").at(0));
     check_cache();
+    check_seal();
   } catch (const std::exception& error) {
     fail(std::string("unexpected exception: ") + error.what());
   }

@@ -1,4 +1,5 @@
 #include "kernauth.hpp"
+#include "sealed_payload.hpp"
 #include "unlock.hpp"
 
 #include <chrono>
@@ -48,7 +49,7 @@ int main() {
 
   std::string payload_key = unlock_payload_key(result.entitlement.features);
   std::string message;
-  const bool opened = unlock_program(payload_key, message);
+  const bool opened = unlock_program(payload_key, kSealedProgram, sizeof kSealedProgram, message);
   wipe_secret(payload_key);
   if (!opened) {
     std::cout << "The payload key could not open this build.\n";
