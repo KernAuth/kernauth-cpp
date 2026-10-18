@@ -91,6 +91,7 @@ inline ClientResult post_entitlement(
       {"public_app_id", options.public_app_id},
       {"client_version", options.client_version},
       {"license_key", license_key},
+      {"save_hwid", true},
       {"fingerprint_version", options.fingerprint_version},
       {"device_fingerprint", options.device_fingerprint},
       {"installation_id", options.installation_id},

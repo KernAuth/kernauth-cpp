@@ -1,7 +1,14 @@
 #pragma once
 
 #include <cstdlib>
+#include <fstream>
 #include <string>
+
+#if defined(__APPLE__)
+#include <ctime>
+#include <unistd.h>
+#include <uuid/uuid.h>
+#endif
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -70,9 +77,40 @@ inline std::string windows_user_sid() {
 #endif
 }
 
+inline std::string file_line(const char* path) {
+  std::ifstream input(path);
+  if (!input) {
+    return "";
+  }
+  std::string line;
+  std::getline(input, line);
+  return trim_copy(line);
+}
+
+inline std::string platform_installation_id() {
+#if defined(__APPLE__)
+  uuid_t uuid{};
+  const timespec wait{1, 0};
+  if (gethostuuid(uuid, &wait) != 0) {
+    return "";
+  }
+  uuid_string_t text{};
+  uuid_unparse_lower(uuid, text);
+  return text;
+#elif !defined(_WIN32)
+  const std::string machine = file_line("/etc/machine-id");
+  if (!machine.empty()) {
+    return machine;
+  }
+  return file_line("/var/lib/dbus/machine-id");
+#else
+  return "";
+#endif
+}
+
 }  // namespace detail
 
-/** Windows user SID, or KERN_INSTALLATION_ID when that override is set. Empty when neither is usable. */
+/** Env override, then the Windows user SID, Linux machine id, or macOS host UUID. */
 inline std::string default_installation_id() {
   if (const char* env = std::getenv("KERN_INSTALLATION_ID")) {
     const std::string override_id = detail::trim_copy(env);
@@ -81,7 +119,11 @@ inline std::string default_installation_id() {
     }
   }
   const std::string sid = detail::trim_copy(detail::windows_user_sid());
-  return detail::acceptable_installation(sid) ? sid : "";
+  if (detail::acceptable_installation(sid)) {
+    return sid;
+  }
+  const std::string machine = detail::trim_copy(detail::platform_installation_id());
+  return detail::acceptable_installation(machine) ? machine : "";
 }
 
 }  // namespace kernauth

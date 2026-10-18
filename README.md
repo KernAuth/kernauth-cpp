@@ -36,11 +36,22 @@ if (!result.active) {
   std::cout << result.message << "\n";
   return 1;
 }
+const auto features = nlohmann::json::parse(result.entitlement.features, nullptr, false);
+if (!features.is_object() || !features.contains("payload_key") || !features["payload_key"].is_string()
+    || features["payload_key"].get<std::string>().empty()) {
+  std::cout << "Payload key is missing\n";
+  return 1;
+}
+// Decrypt the program with this key. Drop it when the heartbeat fails.
+const std::string payload_key = features["payload_key"].get<std::string>();
 std::cout << "Status: " << result.entitlement.status << "\n";
 std::cout << "Features: " << result.entitlement.features << "\n";
+std::cout << "Payload key: " << payload_key << "\n";
 std::cout << "License: " << result.entitlement.license_id << "\n";
 std::cout << "Check expires: " << result.entitlement.expires_at << "\n";
 ```
+
+`payload_key` is the application key from the signed features. It is present only after you save one in the dashboard. Decrypt the useful part of the program with it, and drop that material when the heartbeat fails.
 
 The first success saves this computer. A later run on the same Windows user succeeds. Reset HWID in the dashboard clears it.
 

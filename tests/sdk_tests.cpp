@@ -328,6 +328,7 @@ void check_http(const nlohmann::json& active) {
     expect(first_body.at("protocol_version").get<int>() == 1, "validate sends protocol version 1");
     expect(first_body.at("public_app_id").get<std::string>() == options.public_app_id, "validate sends the public application id");
     expect(first_body.at("device_fingerprint").get<std::string>() == fingerprint, "validate sends the derived fingerprint");
+    expect(first_body.at("save_hwid").get<bool>() == true, "validate saves the HWID");
     expect(first_body.at("installation_id").get<std::string>() == "install_sdk_test", "validate sends the installation id");
   }
 }
