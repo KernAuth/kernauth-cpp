@@ -1,7 +1,5 @@
 #include "kernauth.hpp"
-#include "payload.hpp"
-
-#include <nlohmann/json.hpp>
+#include "unlock.hpp"
 
 #include <chrono>
 #include <cstdlib>
@@ -33,29 +31,6 @@ std::string license_key() {
   return trim(line);
 }
 
-std::string read_payload_key(std::string& features_json) {
-  const auto features = nlohmann::json::parse(features_json, nullptr, false);
-  std::string wrap_key;
-  std::string payload_box;
-  if (features.is_object()) {
-    if (features.contains("wrap_key") && features["wrap_key"].is_string()) {
-      wrap_key = features["wrap_key"].get<std::string>();
-    }
-    if (features.contains("payload_box") && features["payload_box"].is_string()) {
-      payload_box = features["payload_box"].get<std::string>();
-    }
-  }
-  wipe_secret(features_json);
-  std::string payload_key;
-  const bool opened = unwrap_payload_key(wrap_key, payload_box, payload_key);
-  wipe_secret(wrap_key);
-  wipe_secret(payload_box);
-  if (!opened) {
-    wipe_secret(payload_key);
-  }
-  return payload_key;
-}
-
 }  // namespace
 
 int main() {
@@ -71,16 +46,16 @@ int main() {
     return 1;
   }
 
-  std::string payload_key = read_payload_key(result.entitlement.features);
-  std::string plain;
-  const bool opened = open_sealed_payload(payload_key, plain);
+  std::string payload_key = unlock_payload_key(result.entitlement.features);
+  std::string message;
+  const bool opened = unlock_program(payload_key, message);
   wipe_secret(payload_key);
   if (!opened) {
     std::cout << "The payload key could not open this build.\n";
     return 1;
   }
 
-  std::cout << plain << "\n";
+  std::cout << message << "\n";
   std::cout << "Status: " << result.entitlement.status << "\n";
   std::cout << "License: " << result.entitlement.license_id << "\n";
   std::cout << "Check expires: " << result.entitlement.expires_at << "\n";
@@ -88,7 +63,7 @@ int main() {
     std::this_thread::sleep_for(std::chrono::seconds(60));
     const kernauth::ClientResult beat = app.heartbeat(key);
     if (!beat.ok) {
-      wipe_secret(plain);
+      wipe_secret(message);
       std::cout << beat.message << "\n";
       return 1;
     }

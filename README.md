@@ -14,7 +14,7 @@ Use Visual Studio 2022 with the Desktop development with C++ workload. That work
 4. Press F5. The first build installs libsodium, libcurl, and nlohmann/json through vcpkg.
 5. Type the license key at the prompt.
 
-Solution Explorer has Source Files (`src/main.cpp`, `src/payload.cpp`) and Header Files (`include/kernauth.hpp` plus the `kernauth` headers). The sealed bytes are `src/sealed_payload.hpp`.
+Solution Explorer has Source Files (`src/main.cpp`, `src/unlock_key.cpp`, `src/unlock_program.cpp`) and Header Files (`src/unlock.hpp`, `src/sealed_payload.hpp`, and the `kernauth` headers).
 
 The program reads the HWID from the computer. On Windows that is the signed-in user's SID. `KERN_LICENSE_KEY` skips the prompt.
 
@@ -35,15 +35,15 @@ Paste the public app ID and public key from Developers into `src/main.cpp`. The 
 
 ```cpp
 kernauth::ClientResult result = app.validate(license_key);
-std::string payload_key = read_payload_key(result.entitlement.features);
-std::string plain;
-const bool opened = open_sealed_payload(payload_key, plain);
+std::string payload_key = unlock_payload_key(result.entitlement.features);
+std::string message;
+const bool opened = unlock_program(payload_key, message);
 wipe_secret(payload_key);
 ```
 
-`validate` returns a new one-time `wrap_key` and a `payload_box`. `read_payload_key` opens that box with AES-256-GCM and wipes the one-time key. The opened value is the dashboard payload key. `open_sealed_payload` turns that key into a 32-byte key with BLAKE2b and opens `src/sealed_payload.hpp` with XChaCha20-Poly1305. The sample plaintext is not stored in the source. This sample opens only when the saved payload key is `example-payload-key`. For a real program, seal your own bytes with your own key and replace that header. Leave the key out of the repository and out of the binary.
+`unlock_payload_key` opens the one-time lock inside the signed ticket and returns the dashboard payload key. `unlock_program` uses that key to open `src/sealed_payload.hpp`. The program prints `message`. That sentence is not stored in the source. This sample opens only when the saved payload key is `example-payload-key`. For a real program, seal your own bytes with your own key and replace that header. Leave the key out of the repository and out of the binary.
 
-The one-time key is different on every validate and is not stored. Heartbeat does not mint another one. The offline cache rejects a ticket that contains it. Changing `validate` so it always returns success does not produce the plaintext. A memory dump after a real login can still copy the opened key for that run. The example wipes it after opening the payload, and wipes the plaintext when the heartbeat fails.
+The one-time key is different on every validate and is not stored. Heartbeat does not mint another one. The offline cache rejects a ticket that contains it. Changing `validate` so it always returns success does not produce the sentence. A memory dump after a real login can still copy the opened key for that run. The example wipes it after opening the program, and wipes the sentence when the heartbeat fails.
 
 The first success saves this computer. A later run on the same Windows user succeeds. Reset HWID in the dashboard clears it.
 

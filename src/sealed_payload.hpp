@@ -1,8 +1,7 @@
 #pragma once
 
-// XChaCha20-Poly1305 ciphertext. The plaintext is not in this file.
-// It opens with the dashboard payload key "example-payload-key".
-// Replace these bytes to seal your own program. Do not store that key here.
+// Ciphertext for this sample. The sentence is not in this file.
+// Replace these bytes to seal your own program. Do not store the key here.
 
 inline constexpr unsigned char kSealedNonce[] = {
     0x47, 0xd3, 0xb8, 0xb7, 0x1e, 0xcc, 0x9b, 0xdc, 0x9a, 0xfc, 0x31, 0xba,

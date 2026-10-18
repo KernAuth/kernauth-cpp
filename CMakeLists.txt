@@ -79,7 +79,7 @@ if(WIN32)
 endif()
 target_compile_features(kernauth_sdk INTERFACE cxx_std_20)
 
-add_executable(kernauth src/main.cpp src/payload.cpp)
+add_executable(kernauth src/main.cpp src/unlock_key.cpp src/unlock_program.cpp)
 target_link_libraries(kernauth PRIVATE kernauth_sdk)
 target_include_directories(kernauth PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 

@@ -75,10 +75,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\payload.cpp" />
+    <ClCompile Include="src\unlock_key.cpp" />
+    <ClCompile Include="src\unlock_program.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\payload.hpp" />
+    <ClInclude Include="src\unlock.hpp" />
     <ClInclude Include="src\sealed_payload.hpp" />
     <ClInclude Include="include\kernauth.hpp" />
     <ClInclude Include="include\kernauth\cache.hpp" />
