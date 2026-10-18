@@ -1,4 +1,5 @@
 #include "kernauth.hpp"
+#include "payload.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -32,6 +33,16 @@ std::string license_key() {
   return trim(line);
 }
 
+std::string read_payload_key(std::string& features_json) {
+  const auto features = nlohmann::json::parse(features_json, nullptr, false);
+  std::string payload_key;
+  if (features.is_object() && features.contains("payload_key") && features["payload_key"].is_string()) {
+    payload_key = features["payload_key"].get<std::string>();
+  }
+  wipe_secret(features_json);
+  return payload_key;
+}
+
 }  // namespace
 
 int main() {
@@ -41,28 +52,30 @@ int main() {
       "__PUBLIC_KEY__");
 
   const std::string key = license_key();
-  const kernauth::ClientResult result = app.validate(key);
+  kernauth::ClientResult result = app.validate(key);
   if (!result.active) {
     std::cout << result.message << "\n";
     return 1;
   }
-  const auto features = nlohmann::json::parse(result.entitlement.features, nullptr, false);
-  if (!features.is_object() || !features.contains("payload_key") || !features["payload_key"].is_string()
-      || features["payload_key"].get<std::string>().empty()) {
-    std::cout << "Payload key is missing\n";
+
+  std::string payload_key = read_payload_key(result.entitlement.features);
+  std::string plain;
+  const bool opened = open_sealed_payload(payload_key, plain);
+  wipe_secret(payload_key);
+  if (!opened) {
+    std::cout << "The payload key could not open this build.\n";
     return 1;
   }
-  // Decrypt the program with this key. Drop it when the heartbeat fails.
-  const std::string payload_key = features["payload_key"].get<std::string>();
+
+  std::cout << plain << "\n";
   std::cout << "Status: " << result.entitlement.status << "\n";
-  std::cout << "Features: " << result.entitlement.features << "\n";
-  std::cout << "Payload key: " << payload_key << "\n";
   std::cout << "License: " << result.entitlement.license_id << "\n";
   std::cout << "Check expires: " << result.entitlement.expires_at << "\n";
   for (;;) {
     std::this_thread::sleep_for(std::chrono::seconds(60));
     const kernauth::ClientResult beat = app.heartbeat(key);
     if (!beat.ok) {
+      wipe_secret(plain);
       std::cout << beat.message << "\n";
       return 1;
     }

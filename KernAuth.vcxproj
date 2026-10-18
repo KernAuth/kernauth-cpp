@@ -14,7 +14,7 @@
     <VCProjectVersion>17.0</VCProjectVersion>
     <ProjectGuid>{7C3E1A20-4B6D-4E91-9F2A-6D0B8E4C1A77}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>example</RootNamespace>
+    <RootNamespace>KernAuth</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -47,7 +47,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -64,7 +64,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -74,10 +74,21 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\main.cpp" />
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\payload.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\include\kernauth.hpp" />
+    <ClInclude Include="src\payload.hpp" />
+    <ClInclude Include="src\sealed_payload.hpp" />
+    <ClInclude Include="include\kernauth.hpp" />
+    <ClInclude Include="include\kernauth\cache.hpp" />
+    <ClInclude Include="include\kernauth\canonical.hpp" />
+    <ClInclude Include="include\kernauth\client.hpp" />
+    <ClInclude Include="include\kernauth\http.hpp" />
+    <ClInclude Include="include\kernauth\installation.hpp" />
+    <ClInclude Include="include\kernauth\nonce.hpp" />
+    <ClInclude Include="include\kernauth\verify.hpp" />
+    <ClInclude Include="include\kernauth\version.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

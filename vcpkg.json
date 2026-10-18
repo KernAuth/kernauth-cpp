@@ -1,5 +1,5 @@
 {
-  "name": "kernauth-example",
+  "name": "kernauth",
   "version-string": "0.4.0",
   "dependencies": [
     "curl",
