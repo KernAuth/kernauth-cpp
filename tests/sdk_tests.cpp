@@ -398,6 +398,12 @@ void check_cache() {
   const auto expired = kernauth::evaluate_offline_cache(expired_grant, application_id, key_id, expired_now);
   expect(!expired.accepted && expired.reason == "entitlement_expired", "cache rejects passed entitlement expiry");
 
+  auto wrapped_fields = cache_fields(application_id, key_id, stored_at, expires_at);
+  wrapped_fields.features = "{\"payload_box\":\"bbbb\",\"wrap_key\":\"aaaa\"}";
+  const auto wrapped_grant = sign_cache(key, wrapped_fields, stored_at);
+  const auto wrapped = kernauth::evaluate_offline_cache(wrapped_grant, application_id, key_id, inside);
+  expect(!wrapped.accepted && wrapped.reason == "payload_wrap", "cache rejects a one-time payload wrap");
+
   auto tampered_bytes = stored;
   const auto marker = tampered_bytes.canonical.find("ent_cache_0001");
   expect(marker != std::string::npos, "cache canonical contains the entitlement id");

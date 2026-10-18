@@ -41,9 +41,9 @@ const bool opened = open_sealed_payload(payload_key, plain);
 wipe_secret(payload_key);
 ```
 
-`open_sealed_payload` turns the dashboard key into a 32-byte key with BLAKE2b and opens `src/sealed_payload.hpp` with XChaCha20-Poly1305. The sample plaintext is not stored in the source. This sample opens only when the saved payload key is `example-payload-key`. For a real program, seal your own bytes with your own key and replace that header. Leave the key out of the repository and out of the binary.
+`validate` returns a new one-time `wrap_key` and a `payload_box`. `read_payload_key` opens that box with AES-256-GCM and wipes the one-time key. The opened value is the dashboard payload key. `open_sealed_payload` turns that key into a 32-byte key with BLAKE2b and opens `src/sealed_payload.hpp` with XChaCha20-Poly1305. The sample plaintext is not stored in the source. This sample opens only when the saved payload key is `example-payload-key`. For a real program, seal your own bytes with your own key and replace that header. Leave the key out of the repository and out of the binary.
 
-Changing `validate` so it always returns success does not produce the plaintext. The program still needs the key that arrived inside the signed features. A memory dump after a real login can still copy that key. The example wipes the key after opening the payload, and wipes the plaintext when the heartbeat fails.
+The one-time key is different on every validate and is not stored. Heartbeat does not mint another one. The offline cache rejects a ticket that contains it. Changing `validate` so it always returns success does not produce the plaintext. A memory dump after a real login can still copy the opened key for that run. The example wipes it after opening the payload, and wipes the plaintext when the heartbeat fails.
 
 The first success saves this computer. A later run on the same Windows user succeeds. Reset HWID in the dashboard clears it.
 

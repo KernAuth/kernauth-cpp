@@ -35,11 +35,24 @@ std::string license_key() {
 
 std::string read_payload_key(std::string& features_json) {
   const auto features = nlohmann::json::parse(features_json, nullptr, false);
-  std::string payload_key;
-  if (features.is_object() && features.contains("payload_key") && features["payload_key"].is_string()) {
-    payload_key = features["payload_key"].get<std::string>();
+  std::string wrap_key;
+  std::string payload_box;
+  if (features.is_object()) {
+    if (features.contains("wrap_key") && features["wrap_key"].is_string()) {
+      wrap_key = features["wrap_key"].get<std::string>();
+    }
+    if (features.contains("payload_box") && features["payload_box"].is_string()) {
+      payload_box = features["payload_box"].get<std::string>();
+    }
   }
   wipe_secret(features_json);
+  std::string payload_key;
+  const bool opened = unwrap_payload_key(wrap_key, payload_box, payload_key);
+  wipe_secret(wrap_key);
+  wipe_secret(payload_box);
+  if (!opened) {
+    wipe_secret(payload_key);
+  }
   return payload_key;
 }
 

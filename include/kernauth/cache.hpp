@@ -77,6 +77,10 @@ inline CacheDecision evaluate_offline_cache(
     decision.reason = "key_mismatch";
     return decision;
   }
+  if (fields.features.find("\"wrap_key\"") != std::string::npos) {
+    decision.reason = "payload_wrap";
+    return decision;
+  }
   std::chrono::system_clock::time_point expires_at;
   if (!parse_iso_utc(fields.expires_at, expires_at) || expires_at <= now) {
     decision.reason = "entitlement_expired";
