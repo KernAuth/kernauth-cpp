@@ -1,8 +1,8 @@
 # KernAuth C++ SDK (basic)
 
-Header-only license check. Copy `include/` into your project, link **libsodium**, **libcurl**, and **nlohmann/json**, then call validate.
+Header-only license check with vendored **libsodium**, **libcurl**, and **nlohmann/json** under `include/`, plus static libs in `lib/` (x64, Windows).
 
-This sample does **not** use a payload key. For initialize → unwrap → sealed payload, use [kernauth-cpp-secured](https://github.com/KernAuth/kernauth-cpp-secured).
+This sample does **not** use a payload key. For initialize → unwrap → sealed payload, open [kernauth-cpp-secured](https://github.com/KernAuth/kernauth-cpp-secured).
 
 ## Use
 
@@ -22,18 +22,18 @@ if (!result.active) {
 
 Paste the public app ID and public key from Developers into `src/main.cpp` (or your own file). The customer types the license at runtime. On Windows the library reads the signed-in user SID as HWID. `KERN_LICENSE_KEY` skips the prompt.
 
-`validate` accepts the license when the Ed25519 signature checks, the ticket belongs to this application, and it has not expired. The sample then heartbeats every minute. If the session ended, the key was paused, or this computer is blocked, it prints that and exits.
-
-A modified program can still skip the local check. The server can still revoke the license and end the session.
-
 ## Layout
 
 | Path | What |
 | --- | --- |
 | `include/kernauth.hpp` | Public entry (`App`, `hide()`) |
-| `include/kernauth/` | Headers |
+| `include/kernauth/` | SDK headers |
+| `include/curl/`, `include/sodium*`, `include/nlohmann/` | Vendored dependencies |
+| `lib/` | `libcurl.lib`, `libsodium.lib`, `zlib.lib` (x64 static) |
 | `src/main.cpp` | Basic validate + heartbeat example |
 
-Link against libsodium, libcurl, and nlohmann/json yourself (vcpkg, system packages, or vendored trees). There is no vcpkg manifest and no Visual Studio solution in this package.
+When linking your own project: add `include/` to includes, `lib/` to library dirs, define `CURL_STATICLIB` and `SODIUM_STATIC`, and link `libcurl`, `libsodium`, `zlib`, `ws2_32`, `crypt32`, `wldap32`, `normaliz`, `advapi32`.
+
+A modified program can still skip the local check. The server can still revoke the license and end the session.
 
 Documentation: https://kernauth.apidog.io
