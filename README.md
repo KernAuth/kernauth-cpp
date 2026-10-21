@@ -1,23 +1,10 @@
-# KernAuth C++ SDK
+# KernAuth C++ SDK (basic)
 
-Open `KernAuth.sln`, paste the public app ID and public key from Developers, and run it. The program asks for a license key, checks the signed ticket, and prints the license.
+Header-only license check. Copy `include/` into your project, link **libsodium**, **libcurl**, and **nlohmann/json**, then call validate.
 
-The library is the headers in `include/`. Include `kernauth.hpp`. Link libsodium and libcurl. The calls to copy are in `src/main.cpp`.
+This sample does **not** use a payload key. For initialize → unwrap → sealed payload, use [kernauth-cpp-secured](https://github.com/KernAuth/kernauth-cpp-secured).
 
-## Visual Studio
-
-Use Visual Studio 2022 with the Desktop development with C++ workload. That workload includes vcpkg.
-
-1. Open `KernAuth.sln` in this folder.
-2. In `src/main.cpp`, replace the public app ID and public key with the values from Developers.
-3. Press F5. The first build installs libsodium, libcurl, and nlohmann/json through vcpkg.
-4. Type the license key at the prompt.
-
-Solution Explorer has Source Files (`src/main.cpp`) and Header Files (`include/kernauth.hpp` plus the `kernauth` headers).
-
-The program reads the HWID from the computer. On Windows that is the signed-in user's SID. `KERN_LICENSE_KEY` skips the prompt.
-
-## Instance
+## Use
 
 ```cpp
 #include "kernauth.hpp"
@@ -26,35 +13,27 @@ kernauth::App app(
     "https://api.kernauth.com",
     "pub_your_app",
     "your_public_key");
-```
 
-Paste the public app ID and public key from Developers into `src/main.cpp`. The customer types the license key when the program runs. The library reads the Windows user SID.
-
-## Validate
-
-```cpp
 kernauth::ClientResult result = app.validate(license_key);
 if (!result.active) {
   return 1;
 }
 ```
 
-`validate` accepts the license only when the Ed25519 signature checks, the ticket belongs to this application, and it has not expired. Your own code goes after that. The sample prints the status, the license id, and the expiry, then wipes the signed feature payload so the one-time key does not stay in memory.
+Paste the public app ID and public key from Developers into `src/main.cpp` (or your own file). The customer types the license at runtime. On Windows the library reads the signed-in user SID as HWID. `KERN_LICENSE_KEY` skips the prompt.
 
-The program then calls `heartbeat` every minute. If the session was ended, the key was paused, or this computer is blocked, it prints that message and exits.
+`validate` accepts the license when the Ed25519 signature checks, the ticket belongs to this application, and it has not expired. The sample then heartbeats every minute. If the session ended, the key was paused, or this computer is blocked, it prints that and exits.
 
-The first success saves this computer. A later run on the same Windows user succeeds. Reset HWID in the dashboard clears it. The check expiry is at most 15 minutes, or sooner when the license itself ends first. A patched check can still skip a local branch. The server can still revoke the license and end the session.
+A modified program can still skip the local check. The server can still revoke the license and end the session.
 
-## Terminal build
+## Layout
 
-CMake builds the same example. The first configure needs network access. It fetches libsodium, nlohmann/json, and libcurl.
+| Path | What |
+| --- | --- |
+| `include/kernauth.hpp` | Public entry (`App`, `hide()`) |
+| `include/kernauth/` | Headers |
+| `src/main.cpp` | Basic validate + heartbeat example |
 
-```bash
-cmake -S . -B build
-cmake --build build
-printf '%s\n' "YOUR-LICENSE-KEY" | ./build/kernauth
-```
-
-From the KernAuth monorepo, configure with `cmake -S packages/sdk-cpp -B build/sdk-cpp`.
+Link against libsodium, libcurl, and nlohmann/json yourself (vcpkg, system packages, or vendored trees). There is no vcpkg manifest and no Visual Studio solution in this package.
 
 Documentation: https://kernauth.apidog.io

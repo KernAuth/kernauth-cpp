@@ -23,6 +23,9 @@ struct ClientOptions {
   std::string device_fingerprint;
   std::string installation_id;
   std::string device_label;
+  /** From App.initialize() — required when the application has a payload key. */
+  std::string session_salt;
+  std::string time_bucket;
   std::function<std::string()> nonce_generator;
   std::function<std::string()> now_iso;
 };
@@ -99,6 +102,10 @@ inline ClientResult post_entitlement(
   };
   if (!options.device_label.empty()) {
     body["device_label"] = options.device_label;
+  }
+  if (!options.session_salt.empty() && !options.time_bucket.empty()) {
+    body["session_salt"] = options.session_salt;
+    body["time_bucket"] = options.time_bucket;
   }
 
   HttpRequest request;
@@ -292,6 +299,81 @@ inline VersionInfo fetch_version(HttpTransport& transport, std::string_view base
     info.message = "Version response was not JSON";
     return info;
   }
+}
+
+/**
+ * POST /v1/client/initialize. Caller supplies session_salt; on success options.time_bucket
+ * is filled from the server. Derive the AES session key with derive_session_key afterwards.
+ */
+inline ClientResult initialize_session(HttpTransport& transport, ClientOptions& options) {
+  if (options.base_url.empty() || options.public_app_id.empty() || options.device_fingerprint.empty() ||
+      options.installation_id.empty() || options.session_salt.empty()) {
+    return detail::failure_result(0, "invalid_request", "Call initialize with a complete session");
+  }
+  const std::string nonce = options.nonce_generator ? options.nonce_generator() : random_nonce();
+  nlohmann::json body = {
+      {"protocol_version", kProtocolVersion},
+      {"public_app_id", options.public_app_id},
+      {"client_version", options.client_version},
+      {"fingerprint_version", options.fingerprint_version},
+      {"device_fingerprint", options.device_fingerprint},
+      {"installation_id", options.installation_id},
+      {"session_salt", options.session_salt},
+      {"nonce", nonce},
+  };
+  HttpRequest request;
+  request.method = "POST";
+  request.url = detail::join_url(options.base_url, "/v1/client/initialize");
+  request.body = body.dump();
+  const HttpResponse response = transport.exchange(request);
+  if (!response.transport_error.empty()) {
+    return detail::failure_result(0, "transport", "The license service could not be reached");
+  }
+  nlohmann::json parsed;
+  try {
+    parsed = nlohmann::json::parse(response.body);
+  } catch (const nlohmann::json::exception&) {
+    return detail::failure_result(response.status, "malformed_response", "Initialize returned invalid JSON");
+  }
+  if (response.status != 200) {
+    std::string code = "initialize_failed";
+    std::string message = "Initialize failed";
+    if (parsed.contains("error") && parsed["error"].is_object()) {
+      if (parsed["error"].contains("code") && parsed["error"]["code"].is_string()) {
+        code = parsed["error"]["code"].get<std::string>();
+      }
+      if (parsed["error"].contains("message") && parsed["error"]["message"].is_string()) {
+        message = parsed["error"]["message"].get<std::string>();
+      }
+    }
+    auto result = detail::failure_result(response.status, code, message);
+    if (parsed.contains("error") && parsed["error"].contains("request_id") &&
+        parsed["error"]["request_id"].is_string()) {
+      result.request_id = parsed["error"]["request_id"].get<std::string>();
+    }
+    return result;
+  }
+  try {
+    if (!parsed.value("ok", false) || !parsed.contains("time_bucket") || !parsed["time_bucket"].is_string()) {
+      return detail::failure_result(response.status, "malformed_response", "Initialize response was incomplete");
+    }
+    options.time_bucket = parsed.at("time_bucket").get<std::string>();
+    if (options.time_bucket.size() != 10) {
+      return detail::failure_result(response.status, "malformed_response", "Invalid time_bucket");
+    }
+  } catch (const nlohmann::json::exception&) {
+    return detail::failure_result(response.status, "malformed_response", "Initialize fields were incomplete");
+  }
+  ClientResult result;
+  result.ok = true;
+  result.active = true;
+  result.http_status = response.status;
+  result.code = "ok";
+  result.message = "Session ready";
+  if (parsed.contains("request_id") && parsed["request_id"].is_string()) {
+    result.request_id = parsed["request_id"].get<std::string>();
+  }
+  return result;
 }
 
 inline ClientResult validate_license(

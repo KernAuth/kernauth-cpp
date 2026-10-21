@@ -3,7 +3,10 @@
 #include "kernauth/client.hpp"
 #include "kernauth/installation.hpp"
 #include "kernauth/nonce.hpp"
+#include "kernauth/payload.hpp"
+#include "kernauth/session.hpp"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -78,6 +81,10 @@ class App {
   App(App&&) noexcept = default;
   App& operator=(App&&) noexcept = default;
 
+  ~App() {
+    sodium_memzero(session_key_.data(), session_key_.size());
+  }
+
   void set_installation(std::string installation_id, std::string label = "kernauth") {
     options_.installation_id = std::move(installation_id);
     options_.device_label = std::move(label);
@@ -91,10 +98,41 @@ class App {
     options_.device_fingerprint = std::move(fingerprint);
   }
 
+  /**
+   * Create a session salt from HWID material, ask the API for the UTC hour bucket,
+   * and derive the AES session secret used to unwrap payload_box on validate.
+   */
+  ClientResult initialize() {
+    if (const ClientResult* missing = ensure_installation()) {
+      return *missing;
+    }
+    options_.session_salt = random_nonce();
+    options_.time_bucket.clear();
+    sodium_memzero(session_key_.data(), session_key_.size());
+    session_ready_ = false;
+
+    ClientResult result = initialize_session(*transport_, options_);
+    if (!result.ok) {
+      return finish(std::move(result));
+    }
+
+    session_key_ = derive_session_key(
+        options_.public_app_id,
+        options_.installation_id,
+        options_.device_fingerprint,
+        options_.time_bucket,
+        options_.session_salt);
+    session_ready_ = true;
+    result.message = "Session ready";
+    return finish(std::move(result));
+  }
+
   ClientResult validate(std::string_view license_key) {
     if (const ClientResult* missing = ensure_installation()) {
       return *missing;
     }
+    // Session fields are sent only after initialize(). Apps without a payload key
+    // can validate without it; unwrap_payload() still requires a session.
     return finish(validate_license(*transport_, options_, license_key));
   }
 
@@ -103,6 +141,24 @@ class App {
       return *missing;
     }
     return finish(heartbeat_license(*transport_, options_, license_key));
+  }
+
+  /** Open payload_box from the last successful validate using the session secret. */
+  PayloadUnwrap unwrap_payload() const {
+    PayloadUnwrap out;
+    if (!session_ready_) {
+      out.message = "Call initialize first";
+      return out;
+    }
+    if (!response.ok || response.entitlement.features.empty()) {
+      out.message = "Validate first";
+      return out;
+    }
+    return unwrap_payload_key(response.entitlement.features, session_key_);
+  }
+
+  bool session_ready() const {
+    return session_ready_;
   }
 
   ClientResult response;
@@ -134,6 +190,8 @@ class App {
   std::unique_ptr<CurlTransport> owned_;
   HttpTransport* transport_ = nullptr;
   ClientOptions options_;
+  std::array<unsigned char, 32> session_key_{};
+  bool session_ready_ = false;
 };
 
 }  // namespace kernauth

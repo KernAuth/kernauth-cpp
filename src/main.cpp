@@ -54,7 +54,6 @@ int main() {
     return 1;
   }
 
-  // The signed ticket can carry a one-time key. This sample does not use it.
   wipe(result.entitlement.features);
 
   std::cout << "Status: " << result.entitlement.status << "\n";

@@ -77,7 +77,8 @@ inline CacheDecision evaluate_offline_cache(
     decision.reason = "key_mismatch";
     return decision;
   }
-  if (fields.features.find("\"wrap_key\"") != std::string::npos) {
+  if (fields.features.find("\"wrap_key\"") != std::string::npos ||
+      fields.features.find("\"payload_box\"") != std::string::npos) {
     decision.reason = "payload_wrap";
     return decision;
   }
