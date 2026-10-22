@@ -14,13 +14,16 @@ kernauth::App app(
     "pub_your_app",
     "your_public_key");
 
+if (!app.initialize().ok) {
+  return 1;
+}
 kernauth::ClientResult result = app.validate(license_key);
 if (!result.active) {
   return 1;
 }
 ```
 
-Paste the public app ID and public key from Developers into `src/main.cpp` (or your own file). The customer types the license at runtime. On Windows the library reads the signed-in user SID as HWID. `KERN_LICENSE_KEY` skips the prompt.
+Call `initialize()` before `validate` so the session salt and server time bucket are set. Paste the public app ID and public key from Developers into `src/main.cpp` (or your own file). The customer types the license at runtime. On Windows the library reads the signed-in user SID as HWID. `KERN_LICENSE_KEY` skips the prompt.
 
 ## Layout
 

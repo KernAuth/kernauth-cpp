@@ -47,6 +47,12 @@ int main() {
       "__PUBLIC_APP_ID__",
       "__PUBLIC_KEY__");
 
+  const kernauth::ClientResult init = app.initialize();
+  if (!init.ok) {
+    std::cout << init.message << "\n";
+    return 1;
+  }
+
   const std::string key = license_key();
   kernauth::ClientResult result = app.validate(key);
   if (!result.active) {
