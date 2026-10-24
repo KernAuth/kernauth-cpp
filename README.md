@@ -13,6 +13,8 @@ kernauth::App app(
     "https://api.kernauth.com",
     "pub_your_app",
     "your_public_key");
+// The last argument is the version. Leave it out when Require this version is off.
+// kernauth::App app(api, app_id, public_key, "1.0.0");
 
 if (!app.initialize().ok) {
   return 1;
