@@ -1,10 +1,6 @@
 #pragma once
 
-#include "kernauth/client.hpp"
-#include "kernauth/installation.hpp"
-#include "kernauth/nonce.hpp"
-#include "kernauth/payload.hpp"
-#include "kernauth/session.hpp"
+#include "kernauth/options.hpp"
 
 #include <array>
 #include <cstddef>
@@ -13,8 +9,11 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace kernauth {
+
+class HttpTransport;
 
 constexpr std::uint64_t mix64(std::uint64_t value) {
   value += 0x9E3779B97F4A7C15ull;
@@ -64,141 +63,60 @@ constexpr std::uint64_t build_seed() {
   return hash == 0 ? 0xA5A5A5A5A5A5A5A5ull : hash;
 }
 
+/**
+ * Open one file_boxes entry. The box is nonce(12) || AES-256-GCM(session key, file key).
+ * Writes 32 bytes to file_key_out. Returns false when AES-GCM or the box is unusable.
+ */
+bool unwrap_file_key(
+    std::string_view box_base64,
+    const std::array<unsigned char, 32>& session_key,
+    std::array<unsigned char, 32>& file_key_out);
+
 class App {
  public:
   App(
       std::string base_url,
       std::string public_app_id,
       std::string public_key_base64,
-      std::string client_version = {})
-      : owned_(std::make_unique<CurlTransport>()), transport_(owned_.get()) {
-    options_.base_url = std::move(base_url);
-    options_.public_app_id = std::move(public_app_id);
-    options_.public_key_base64 = std::move(public_key_base64);
-    if (!client_version.empty()) {
-      options_.client_version = std::move(client_version);
-    }
-  }
-
-  App(HttpTransport& transport, ClientOptions options)
-      : transport_(&transport), options_(std::move(options)) {}
+      std::string client_version = {});
+  App(HttpTransport& transport, const ClientOptions& options);
 
   App(const App&) = delete;
   App& operator=(const App&) = delete;
-  App(App&&) noexcept = default;
-  App& operator=(App&&) noexcept = default;
+  App(App&&) noexcept;
+  App& operator=(App&&) noexcept;
+  ~App();
 
-  ~App() {
-    sodium_memzero(session_key_.data(), session_key_.size());
-  }
-
-  void set_installation(std::string installation_id, std::string label = "kernauth") {
-    options_.installation_id = std::move(installation_id);
-    options_.device_label = std::move(label);
-    if (options_.device_fingerprint.empty()) {
-      options_.device_fingerprint =
-          derive_device_fingerprint(options_.fingerprint_version, options_.installation_id);
-    }
-  }
-
-  void set_fingerprint(std::string fingerprint) {
-    options_.device_fingerprint = std::move(fingerprint);
-  }
+  void set_installation(std::string installation_id, std::string label = "kernauth");
+  void set_fingerprint(std::string fingerprint);
 
   /**
    * Create a session salt from HWID material, ask the API for the UTC hour bucket,
    * and derive the AES session secret used to unwrap payload_box on validate.
    */
-  ClientResult initialize() {
-    if (const ClientResult* missing = ensure_installation()) {
-      return *missing;
-    }
-    options_.session_salt = random_nonce();
-    options_.time_bucket.clear();
-    sodium_memzero(session_key_.data(), session_key_.size());
-    session_ready_ = false;
-
-    ClientResult result = initialize_session(*transport_, options_);
-    if (!result.ok) {
-      return finish(std::move(result));
-    }
-
-    session_key_ = derive_session_key(
-        options_.public_app_id,
-        options_.installation_id,
-        options_.device_fingerprint,
-        options_.time_bucket,
-        options_.session_salt);
-    session_ready_ = true;
-    result.message = "Session ready";
-    return finish(std::move(result));
-  }
-
-  ClientResult validate(std::string_view license_key) {
-    if (const ClientResult* missing = ensure_installation()) {
-      return *missing;
-    }
-    // Session fields are sent only after initialize(). Apps without a payload key
-    // can validate without it; unwrap_payload() still requires a session.
-    return finish(validate_license(*transport_, options_, license_key));
-  }
-
-  ClientResult heartbeat(std::string_view license_key) {
-    if (const ClientResult* missing = ensure_installation()) {
-      return *missing;
-    }
-    return finish(heartbeat_license(*transport_, options_, license_key));
-  }
+  ClientResult initialize();
+  ClientResult validate(std::string_view license_key);
+  /** Check a key. Does not send a device and does not read the HWID. */
+  ClientResult check(std::string_view license_key);
+  ClientResult heartbeat(std::string_view license_key);
 
   /** Open payload_box from the last successful validate using the session secret. */
-  PayloadUnwrap unwrap_payload() const {
-    PayloadUnwrap out;
-    if (!session_ready_) {
-      out.message = "Call initialize first";
-      return out;
-    }
-    if (!response.ok || response.entitlement.features.empty()) {
-      out.message = "Validate first";
-      return out;
-    }
-    return unwrap_payload_key(response.entitlement.features, session_key_);
-  }
+  PayloadUnwrap unwrap_payload() const;
+  /** Open every file_boxes entry from the last successful validate. */
+  std::vector<FileKey> files() const;
+  /** Download one sealed file by name and return its plaintext bytes. */
+  DownloadResult download(std::string_view name);
 
-  bool session_ready() const {
-    return session_ready_;
-  }
+  bool session_ready() const;
 
   ClientResult response;
 
  private:
-  const ClientResult* ensure_installation() {
-    if (!options_.installation_id.empty()) {
-      return nullptr;
-    }
-    const std::string installation = default_installation_id();
-    if (installation.empty()) {
-      ClientResult missing;
-      missing.message = "Could not read the HWID";
-      response = std::move(missing);
-      return &response;
-    }
-    set_installation(installation, "desktop");
-    return nullptr;
-  }
+  struct Impl;
+  const ClientResult* ensure_installation();
+  ClientResult finish(ClientResult result);
 
-  ClientResult finish(ClientResult result) {
-    if (result.ok && result.message.empty()) {
-      result.message = "License is active";
-    }
-    response = std::move(result);
-    return response;
-  }
-
-  std::unique_ptr<CurlTransport> owned_;
-  HttpTransport* transport_ = nullptr;
-  ClientOptions options_;
-  std::array<unsigned char, 32> session_key_{};
-  bool session_ready_ = false;
+  std::unique_ptr<Impl> impl_;
 };
 
 }  // namespace kernauth

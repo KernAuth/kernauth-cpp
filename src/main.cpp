@@ -1,7 +1,5 @@
 #include "kernauth.hpp"
 
-#include <sodium.h>
-
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
@@ -33,8 +31,9 @@ std::string license_key() {
 }
 
 void wipe(std::string& value) {
-  if (!value.empty()) {
-    sodium_memzero(value.data(), value.size());
+  volatile char* bytes = value.data();
+  for (std::size_t index = 0; index < value.size(); ++index) {
+    bytes[index] = '\0';
   }
   value.clear();
 }
@@ -46,12 +45,6 @@ int main() {
       "https://api.kernauth.com",
       "__PUBLIC_APP_ID__",
       "__PUBLIC_KEY__");
-
-  const kernauth::ClientResult init = app.initialize();
-  if (!init.ok) {
-    std::cout << init.message << "\n";
-    return 1;
-  }
 
   const std::string key = license_key();
   kernauth::ClientResult result = app.validate(key);
