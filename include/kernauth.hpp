@@ -1,10 +1,9 @@
 #pragma once
 
-#include "kernauth/options.hpp"
-
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -14,6 +13,70 @@
 namespace kernauth {
 
 class HttpTransport;
+
+constexpr int kProtocolVersion = 1;
+
+struct EntitlementFields {
+  int protocol_version = kProtocolVersion;
+  std::string entitlement_id;
+  std::string application_id;
+  std::string license_id;
+  std::string status;
+  std::string features;
+  std::string device_id;
+  std::string issued_at;
+  std::string expires_at;
+  std::string server_time;
+  std::string nonce;
+  std::string key_id;
+};
+
+struct ClientOptions {
+  std::string base_url;
+  std::string public_app_id;
+  std::string public_key_base64;
+  std::string key_id;
+  std::string client_version = "0.4.0";
+  int fingerprint_version = 1;
+  std::string device_fingerprint;
+  std::string installation_id;
+  std::string device_label;
+  /** From App.initialize() — required when the application has a payload key. */
+  std::string session_salt;
+  std::string time_bucket;
+  /** SHA-256 of the program. Sent on validate only when the application lists hashes. */
+  std::string program_digest;
+  std::function<std::string()> nonce_generator;
+  std::function<std::string()> now_iso;
+};
+
+struct ClientResult {
+  bool ok = false;
+  bool active = false;
+  int http_status = 0;
+  std::string code;
+  std::string message;
+  std::string request_id;
+  EntitlementFields entitlement;
+  std::string signature_base64;
+};
+
+struct PayloadUnwrap {
+  bool ok = false;
+  std::string payload_key;
+  std::string message;
+};
+
+struct FileKey {
+  std::string name;
+  std::array<unsigned char, 32> key{};
+};
+
+struct DownloadResult {
+  bool ok = false;
+  std::string message;
+  std::vector<unsigned char> bytes;
+};
 
 constexpr std::uint64_t mix64(std::uint64_t value) {
   value += 0x9E3779B97F4A7C15ull;
@@ -63,15 +126,6 @@ constexpr std::uint64_t build_seed() {
   return hash == 0 ? 0xA5A5A5A5A5A5A5A5ull : hash;
 }
 
-/**
- * Open one file_boxes entry. The box is nonce(12) || AES-256-GCM(session key, file key).
- * Writes 32 bytes to file_key_out. Returns false when AES-GCM or the box is unusable.
- */
-bool unwrap_file_key(
-    std::string_view box_base64,
-    const std::array<unsigned char, 32>& session_key,
-    std::array<unsigned char, 32>& file_key_out);
-
 class App {
  public:
   App(
@@ -89,6 +143,7 @@ class App {
 
   void set_installation(std::string installation_id, std::string label = "kernauth");
   void set_fingerprint(std::string fingerprint);
+  void set_program_digest(std::string digest);
 
   /**
    * Create a session salt from HWID material, ask the API for the UTC hour bucket,
@@ -104,6 +159,11 @@ class App {
   PayloadUnwrap unwrap_payload() const;
   /** Open every file_boxes entry from the last successful validate. */
   std::vector<FileKey> files() const;
+  /**
+   * Read one named string from the last verified validate features.
+   * A missing name, a non-string, or an inactive result returns empty.
+   */
+  std::string string(std::string_view name) const;
   /** Download one sealed file by name and return its plaintext bytes. */
   DownloadResult download(std::string_view name);
 

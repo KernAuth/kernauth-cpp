@@ -1,59 +1,57 @@
 # KernAuth C++ SDK
 
-Open `KernAuth.sln`, paste the public app ID and public key from Developers, and run it. The program asks for a license key, checks the signed ticket, and prints the license.
+`KernAuth.sln` builds the static library `kernauth.lib`. Your program is one project. Include `kernauth.hpp`, link `kernauth.lib`, and also link the libsodium and libcurl libraries that vcpkg built for this library. Start from `src/secured.cpp`.
 
-The library is the static archive built from `src/sdk`. Include `include/kernauth.hpp` and link libsodium and libcurl. `src/main.cpp` validates and heartbeats, and `src/secured.cpp` initializes, unwraps the payload, and downloads a file.
+`src/secured.cpp` asks for a license, validates it, and downloads one uploaded file. The plaintext stays in memory and is wiped before the program exits. It does not write that file and it does not load those bytes. `src/main.cpp` is the smaller example: validate, then heartbeat.
 
 ## Visual Studio
 
-Use Visual Studio 2026 with the Desktop development with C++ workload. That workload includes vcpkg. The project toolset is v145.
+Use Visual Studio 2026 with the Desktop development with C++ workload. That workload includes vcpkg. The project toolset is v145. The solution has one project, and that project is the static library.
 
 1. Open `KernAuth.sln` in this folder.
-2. In `src/main.cpp`, replace the public app ID and public key with the values from Developers.
-3. Press F5. The first build installs libsodium, libcurl, and nlohmann/json through vcpkg.
-4. Type the license key at the prompt.
+2. Build it. The first build installs libsodium, libcurl, and nlohmann/json through vcpkg and produces `kernauth.lib`.
+3. In your own project, include `include/kernauth.hpp` and link `kernauth.lib` plus those vcpkg libraries.
+4. Copy `src/secured.cpp`, `src/download_hold.cpp`, and `src/download_hold.hpp` into that project. Replace `__PUBLIC_APP_ID__` and `__PUBLIC_KEY__` with the values from Developers.
 
-Solution Explorer has Source Files (`src/main.cpp`) and Header Files (`include/kernauth.hpp` plus the `kernauth` headers).
+The program reads the HWID from the computer. On Windows that is the signed-in user's SID. `KERN_LICENSE_KEY` skips the prompt. `KERN_FILE_NAME` defaults to `build` and selects which uploaded file to download. The sample does not write an output file.
 
-The program reads the HWID from the computer. On Windows that is the signed-in user's SID. `KERN_LICENSE_KEY` skips the prompt.
-
-## Instance
+## Download
 
 ```cpp
 #include "kernauth.hpp"
 
 kernauth::App app(
     "https://api.kernauth.com",
-    "pub_your_app",
-    "your_public_key",
-    "1.0.0");
+    hide("__PUBLIC_APP_ID__"),
+    hide("__PUBLIC_KEY__"));
+
+kernauth::ClientResult session = app.initialize();
+kernauth::ClientResult result = app.validate(license_key);
+kernauth::DownloadResult file = app.download("build");
+// file.bytes is the plaintext. The sample wipes it and does not write it. Do not load it as a library.
 ```
 
-The last argument is the version sent to KernAuth. Leave it out when Require this version is off. Paste the public app ID and public key from Developers into `src/main.cpp`. The customer types the license key when the program runs. The library reads the Windows user SID.
+## Payload key
 
-## Validate
+`unwrap_payload()` opens `payload_box` from the last successful validate. The payload key arrives only inside that ticket. `wrap_key` is never returned.
 
 ```cpp
-kernauth::ClientResult result = app.validate(license_key);
-if (!result.active) {
-  return 1;
-}
+kernauth::PayloadUnwrap payload = app.unwrap_payload();
 ```
 
-Call `initialize()` before `validate`. That derives a session secret from HWID, a random salt, and the server UTC hour. `validate` accepts the license only when the Ed25519 signature checks, the ticket belongs to this application, and it has not expired. When a payload key is configured, use `unwrap_payload()` to open `payload_box` with that session secret — `wrap_key` is never returned.
+Call `initialize()` before `validate`. That derives a session secret from HWID, a random salt, and the server UTC hour. `validate` accepts the license only when the Ed25519 signature checks, the ticket belongs to this application, and it has not expired.
 
-The program then calls `heartbeat` every minute. If the session was ended, the key was paused, or this computer is blocked, it prints that message and exits.
+`src/main.cpp` then calls `heartbeat` every minute. If the session was ended, the key was paused, or this computer is blocked, it prints that message and exits.
 
 The first success saves this computer. A later run on the same Windows user succeeds. Reset HWID in the dashboard clears it. The check expiry is at most 15 minutes, or sooner when the license itself ends first. A patched check can still skip a local branch. The server can still revoke the license and end the session.
 
 ## Terminal build
 
-CMake builds the same example. The first configure needs network access. It fetches libsodium, nlohmann/json, and libcurl.
+CMake builds the library and `src/secured.cpp`. The first configure needs network access. It fetches libsodium, nlohmann/json, and libcurl.
 
 ```bash
 cmake -S . -B build
-cmake --build build
-printf '%s\n' "YOUR-LICENSE-KEY" | ./build/kernauth
+cmake --build build --target secured
 ```
 
 From the KernAuth monorepo, configure with `cmake -S packages/sdk-cpp -B build/sdk-cpp`.
