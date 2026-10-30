@@ -65,9 +65,19 @@ int main() {
     return 1;
   }
 
+  kernauth::PayloadUnwrap opened = app.unwrap_payload();
   kernauth::DownloadResult file = app.download(file_name);
-  if (kernauth::release_download(file.ok, file, output) != 0) {
-    std::cout << file.message << "\n";
+  if (!opened.ok || !file.ok) {
+    std::cout << (opened.ok ? file.message : opened.message) << "\n";
+    kernauth::wipe_secret(opened.payload_key);
+    if (file.ok) {
+      kernauth::release_download(true, file, output);
+    }
+    return 1;
+  }
+  std::cout << kernauth::delivery_line(opened.payload_key, file.bytes) << "\n";
+  kernauth::wipe_secret(opened.payload_key);
+  if (kernauth::release_download(true, file, output) != 0) {
     return 1;
   }
   std::cout << "Held " << file_name << "\n";
