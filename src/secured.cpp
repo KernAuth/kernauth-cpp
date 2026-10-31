@@ -30,16 +30,6 @@ std::string license_key() {
   return trim(line);
 }
 
-std::string env_or(const char* name, const char* fallback) {
-  if (const char* env = std::getenv(name)) {
-    const std::string value = trim(env);
-    if (!value.empty()) {
-      return value;
-    }
-  }
-  return fallback;
-}
-
 }  // namespace
 
 int main() {
@@ -56,8 +46,7 @@ int main() {
   }
 
   const kernauth::ClientResult result = app.validate(key);
-  const std::string file_name = env_or("KERN_FILE_NAME", "build");
-  const std::filesystem::path output{file_name};
+  const std::filesystem::path output{"held"};
   if (!result.active) {
     kernauth::DownloadResult unused;
     kernauth::release_download(false, unused, output);
@@ -66,7 +55,7 @@ int main() {
   }
 
   kernauth::PayloadUnwrap opened = app.unwrap_payload();
-  kernauth::DownloadResult file = app.download(file_name);
+  kernauth::DownloadResult file = app.download();
   if (!opened.ok || !file.ok) {
     std::cout << (opened.ok ? file.message : opened.message) << "\n";
     kernauth::wipe_secret(opened.payload_key);
@@ -80,6 +69,6 @@ int main() {
   if (kernauth::release_download(true, file, output) != 0) {
     return 1;
   }
-  std::cout << "Held " << file_name << "\n";
+  std::cout << "Held\n";
   return 0;
 }

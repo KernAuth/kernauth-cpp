@@ -13,7 +13,7 @@ Use Visual Studio 2026 with the Desktop development with C++ workload. That work
 3. In your own project, include `include/kernauth.hpp` and link `kernauth.lib` plus those vcpkg libraries.
 4. Copy `src/secured.cpp`, `src/download_hold.cpp`, and `src/download_hold.hpp` into that project. Replace `__PUBLIC_APP_ID__` and `__PUBLIC_KEY__` with the values from Developers.
 
-The program reads the HWID from the computer. On Windows that is the signed-in user's SID. `KERN_LICENSE_KEY` skips the prompt. `KERN_FILE_NAME` defaults to `build` and selects which uploaded file to download. The sample does not write an output file.
+The program reads the HWID from the computer. On Windows that is the signed-in user's SID. `KERN_LICENSE_KEY` skips the prompt. `download()` takes no file name. The sample does not write an output file.
 
 ## Download
 
@@ -27,7 +27,7 @@ kernauth::App app(
 
 kernauth::ClientResult session = app.initialize();
 kernauth::ClientResult result = app.validate(license_key);
-kernauth::DownloadResult file = app.download("build");
+kernauth::DownloadResult file = app.download();
 // file.bytes is the plaintext. The sample wipes it and does not write it. Do not load it as a library.
 ```
 
@@ -47,11 +47,11 @@ The first success saves this computer. A later run on the same Windows user succ
 
 ## One build
 
-Place the private bytes with KERNAUTH_SEAL. The running program ignores that section and calls download("build") after validate.
+Place the private bytes with KERNAUTH_SEAL. The running program ignores that section and calls `download()` after validate. `download()` takes no file name.
 
 kernauth-seal --input app.exe
 
-With KERN_AUTH_API_KEY and KERN_AUTH_APP_ID set, the tool uploads those bytes as the file named build and writes app.share.exe. Without a key, pass --no-upload --payload-out build.bin and upload that file from Application settings. Share app.share.exe.
+Set `KERN_AUTH_SEALER_KEY`. The seller generates that key on the Files card. It is shown once. Rotate replaces it. Starter can generate it. The tool uploads the sealed file and writes app.share.exe. It does not use `KERN_AUTH_API_KEY` or `KERN_AUTH_APP_ID`. A developer `ka_` key cannot upload the sealed file. Without the sealer key, pass `--no-upload --payload-out build.bin`. Share app.share.exe. Keep libcurl.dll and z.dll beside the sealer.
 
 ## Terminal build
 

@@ -165,8 +165,8 @@ class App {
    * A missing name, a non-string, or an inactive result returns empty.
    */
   std::string string(std::string_view name) const;
-  /** Download one sealed file by name and return its plaintext bytes. */
-  DownloadResult download(std::string_view name);
+  /** Download the application's sealed file and return its plaintext bytes. */
+  DownloadResult download();
 
   bool session_ready() const;
 
