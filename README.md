@@ -45,6 +45,14 @@ Call `initialize()` before `validate`. That derives a session secret from HWID, 
 
 The first success saves this computer. A later run on the same Windows user succeeds. Reset HWID in the dashboard clears it. The check expiry is at most 15 minutes, or sooner when the license itself ends first. A patched check can still skip a local branch. The server can still revoke the license and end the session.
 
+## One build
+
+Place the private bytes with KERNAUTH_SEAL. The running program ignores that section and calls download("build") after validate.
+
+kernauth-seal --input app.exe
+
+With KERN_AUTH_API_KEY and KERN_AUTH_APP_ID set, the tool uploads those bytes as the file named build and writes app.share.exe. Without a key, pass --no-upload --payload-out build.bin and upload that file from Application settings. Share app.share.exe.
+
 ## Terminal build
 
 CMake builds the library and `src/secured.cpp`. The first configure needs network access. It fetches libsodium, nlohmann/json, and libcurl.
